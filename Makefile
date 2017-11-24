@@ -1,11 +1,11 @@
 CC = g++
-OBJECTS = main.o graph.o asa103.o gpb.o utils.o
+SRCS = $(wildcard src/utils.cpp src/graph.cpp src/gpb.cpp src/main.cpp src/asa103.cpp)
+OBJS = $(SRCS:.cpp = .o)
 LDFLAGS = -larmadillo
 CPPFLAGS = -std=c++11 -O2
 
-gpb : $(OBJECTS)
-	$(CC) -o gpb $(OBJECTS) $(LDFLAGS) $(CPPFLAGS)
-
+gpb : $(OBJS)
+	$(CC) -o gpb $(OBJS) $(LDFLAGS) $(CPPFLAGS)
 
 clean:
 	rm -rf *.o

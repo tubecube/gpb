@@ -2,37 +2,52 @@
 #define GPB_H
 
 #include <vector>
-#include <iostream>
-#include <iomanip>
 #include <armadillo>
-#include <set>
-#include <list>
 #include <random>
 #include "asa103.hpp"
 #include "graph.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace arma;
 
-class GPB : public Graph {
+class GPB {
 
 public:
-    GPB(int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0)
-    :K(k), Fpshp(Fpshp), Fprte(Fprte), Bpshp(Bpshp), Bprte(Bprte){}
+    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=true):
+    	graph(g), K(k), Fpshp(Fpshp), Fprte(Fprte), Bpshp(Bpshp), Bprte(Bprte), dir(dir), sample_deep(sample_deep) 
+	{ 
+		const char* tmp = (graph.is_directed() ? "directed" : "undirected");
+		INFO("GPB settings: graph(%d nodes, %d edges, %s).\n", graph.n_nodes(), graph.n_edges(), tmp); 
+		INFO("GPB settings: K(%d), Fpshp(%lf), Fprte(%lf), Bpshp(%lf), Bprte(%lf).\n", K, Fpshp, Fprte, Bpshp, Bprte);
+		init();
+	}
 
-    void run(int max_iters);
+    void gibbs(int burnin, int Ns);
 
-    vector<set<int>> link_community(bool, double);
+    // void vi(int max_iters);
 
-    vector<vector<int>> node_community(bool, double);
+    void save(const string& prefix, const mat& F, const mat& B) const;
 
-    void save_model(string dirname) const;
+	void load(const string& prefix);
 
-    void mcmc(int burnin, int sample);
+    // void save_community(vector<vector<int>>& comm);
 
-    void save_community(vector<vector<int>>& comm);
+	mat link_component();
+
+	vector<set<string>> get_community(const mat& component, bool overlap=false);
+
+	static int ECHO_PER_ITERS;
+
+	static int SAVE_PER_ITERS;
+
+	void set_dir(string dir) {this->dir = dir;}
 
 private:
+	const Graph& graph;
+
+	int N;
+
     int K;
 
     double Fpshp;
@@ -43,17 +58,13 @@ private:
 
     double Bprte;
 
-    mat Frte; // 
+    mat Frte;
 
     mat Fshp;
     
     mat ElnF;
-    
-    mat EF;
 
     mat F;
-
-    mat EB; //
 
     mat ElnB;
 
@@ -63,31 +74,27 @@ private:
 
     mat B;
 
+	string dir;
+
+	bool sample_deep;
+
     void init();
 
-    // sp_mat estimate_phi(int i, int j);
+    // mat estimate_phi(int i, int j);
 
-    mat estimate_phi(int i, int j);
+    double compute_elbo(const mat& F, const mat& B) const;
 
-    double likelihood() const;
+    // double validation_likelihood() const;
 
-    double validation_likelihood() const;
+    // void compute_exp_ln();
 
-    void compute_exp_ln();
+    mat sample_phi(int i, int j, bool sample_deep);
 
-    sp_imat Network;
+    void sample_F(const mat& Fshp, const mat& Frte);
 
-    mat sample_phi(int i, int j);
-
-    mat sample_F(mat Fshp, mat Frte);
-
-    mat sample_B(mat Bshp, mat Brte);
-
-    int iter;
+    void sample_B(const mat& Bshp, const mat& Brte);
 
     default_random_engine generator;
-
-    random_device rd;    
 };
 
 #endif

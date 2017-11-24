@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "utils.hpp"
+#include "graph.hpp"
 #include "metrics.hpp"
 #include "gpb.hpp"
 
@@ -9,61 +11,79 @@ using namespace std;
 
 void usage()
 {
-    cout << "gpb    \"input_edge_file\" \"#clusters\" \"ground_truth_file(optional)\"\n";
-    cout << "other optional parameters:\n";
-    cout << "       -undirected ------------ undirected graph\n";
-    cout << "       -heldout -------------- use heldout set \n";
-    cout << "       -disjoint ------------- create disjoint communities\n";
-    cout << "       -thresh --------------- thresh for detecting overlapping comms\n";
-    cout << "       -Fpshp,Fprte,Bpshp,Bprte ------- hyper-parameters\n";
-    cout << "       -vi ------------------- variational inference\n";
-    cout << "       -max N -------- variational inference max iterations\n";
-    cout << "       -burnin N ----------- mcmc burnin\n";
-    cout << "       -sample N ----------- mcmc samples\n";
-    exit(1);
+    cout << "USAGE: gpb INPUT_FILE [-u][-h][-v][-k ?][-m ?][-b ?][-s ?][-Fpshp ?][-Fprte ?][-Bpshp ?][-Bprte ?]\n";
+	cout << "\n";
+    cout << "OPTIONAL parameters:\n";
+    cout << "-u: indicate an undirected graph\n";
+    cout << "-h: use a heldout set\n";
+    cout << "-v: use variational inference\n";
+	cout << "-k ?: input dimensions(default: 10)\n";
+    cout << "-m ?: max iterations in vi(default: 100)\n";
+    cout << "-b ?: burnin in Gibbs sampling(default: 50)\n";
+    cout << "-n ?: samples in Gibbs sampling(default: 50)\n";
+	cout << "-s ?: directory to save model(default: model_k)\n";
+	cout << "-g ?: ground truth filename(default: None)\n";
+    cout << "-Fpshp ?: hyper parameters(default: 0.3)\n";
+    cout << "-Fprte ?: hyper parameters(default: 1.0)\n";
+    cout << "-Bpshp ?: hyper parameters(default: 0.3)\n";
+    cout << "-Bprte ?: hyper parameters(default: 1.0)\n";
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 3)
+    if (argc <= 1) {
         usage();
+		exit(1);
+	}
 
+	// 输入文件
     string input = argv[1];
-    int K = atoi(argv[2]);
 
-    string ground = "";
-
-    if (argc > 3) {
-        string argv3 = argv[3];
-        if (argv3[0] != '-')
-            ground = argv3;
-    }
-
+	// default settings
     bool directed = true;
     bool heldout = false;
-    int max_iters = -1;
-    double thresh = 0;
-    bool overlap = true;
+	bool Gibbs = true;
+	int K = 10;
+    int vimax = 100;
+    int Ns = 50;
+    int burnin = 50;
     double Fpshp = 0.3;
     double Fprte = 1.0;
     double Bpshp = 0.3;
     double Bprte = 1.0;
-    string method = "mcmc";
-    string save_dir;
-    int sample = 50;
-    int burnin = 100;
+    string save_dir="";
+	string ground_truth="";
 
-    for (int i=3; i<argc; ++i)
+    for (int i=2; i<argc; ++i)
     {
-        if (strcmp(argv[i], "-max")==0)
-            max_iters = atoi(argv[++i]);
-        else if (strcmp(argv[i], "-thresh")==0)
-            thresh = atof(argv[++i]);
-        else if (strcmp(argv[i], "-disjoint")==0)
-            overlap = false;
-        else if (strcmp(argv[i], "-undirected")==0)
+		// number of dimensions
+		if (strcmp(argv[i], "-k")==0)
+			K = atoi(argv[++i]);
+
+		// use variational inference instead of Gibbs sampling
+		else if (strcmp(argv[i], "-v")==0)
+			Gibbs = false;
+
+		// variational inference max iterations
+		else if (strcmp(argv[i], "-m")==0)
+            vimax = atoi(argv[++i]);
+
+		// burnin in Gibbs sampling
+        else if (strcmp(argv[i], "-b")==0)
+            burnin = atoi(argv[++i]);
+
+		// #samples in Gibbs sampling
+        else if (strcmp(argv[i], "-n")==0)
+            Ns = atoi(argv[++i]);
+
+		// indicate an undirected graph
+        else if (strcmp(argv[i], "-u")==0)
             directed = false;
-        else if (strcmp(argv[i], "-heldout")==0)
+
+		// use a heldout set
+        else if (strcmp(argv[i], "-h")==0)
             heldout = true;
+
+		// hyperparameters
         else if (strcmp(argv[i], "-Fpshp")==0)
             Fpshp = atof(argv[++i]);
         else if (strcmp(argv[i], "-Fprte")==0)
@@ -72,34 +92,36 @@ int main(int argc, char* argv[]) {
             Bpshp = atof(argv[++i]);
         else if (strcmp(argv[i], "-Bprte")==0)
             Bprte = atof(argv[++i]);
-        else if (strcmp(argv[i], "-vi")==0)
-            method = "vi";
-        else if (strcmp(argv[i], "-burnin")==0)
-            burnin = atoi(argv[++i]);
-        else if (strcmp(argv[i], "-sample")==0)
-            sample = atoi(argv[++i]);
-        else if (strcmp(argv[i], "-save")==0)
+
+		// saved directory
+        else if (strcmp(argv[i], "-s")==0)
             save_dir = argv[++i];
+
+		else if (strcmp(argv[i], "-g")==0)
+			ground_truth = argv[++i];
+		else {
+			usage();
+			exit(1);
+		}
     }
 
-    GPB *model = new GPB(K, Fpshp, Fprte, Bpshp, Bprte);
-    model->read_from_file(input, ground, directed, heldout);
-    if (method == "mcmc")
-        model->mcmc(burnin, sample);
-    else if (method == "vi")
-        model->run(max_iters);
-    // bool overlap = Metrics<int>::is_overlap(model->ground_truth);
-    if (save_dir.size())
-        model->save_model(save_dir);
-    auto g1 = model->ground_truth;
-    auto g2 = model->node_community(overlap, thresh);
-    model->save_community(g2);
-    /*
-    if (g1.size() > 0) {
-        model->cut(g2);
-        overlap ? Metrics<int>::ONMI(g1,g2) : Metrics<int>::NNMI(g1, g2);
-        Metrics<int>::F1(g1, g2);
-    }
-    */
+	if (save_dir.size() == 0)
+		save_dir = "model_" + to_string(K);
+	makedir(save_dir.c_str());
+
+	Graph graph = Graph(input, directed);
+
+    GPB *gpb = new GPB(graph, K, Fpshp, Fprte, Bpshp, Bprte, save_dir.c_str());
+
+    if (Gibbs)	gpb->gibbs(burnin, Ns);
+    // else	gpb->vi(vimax);
+
+	vector<set<string>> community = gpb->get_community(gpb->link_component());
+	Metrics<string>::set_to_file(save_dir+"/community.dat", community);
+	if (ground_truth.size() > 0)
+	{
+		vector<set<string>> base = Metrics<string>::file_to_set2(ground_truth);
+    	Metrics<string>::F1(community, base);
+	}
     return 0;
 }

@@ -1,201 +1,164 @@
 #include "graph.hpp"
 
-void
-Graph::read_from_file(const string& filename, const string& ground, bool directed, bool heldout)
+int Graph::read_from_file(const string& filename, bool directed)
 {
-    this->directed = directed;
-    if (directed)
-        cout << "reading directed network\n";
-    else
-        cout << "reading undirected network\n";
-
     ifstream stream(filename);
     if (stream.is_open() == false)
-    {
-        cerr << " fail opening file !\n";
-        exit(-1);
-    }
+	{
+       ERROR("Fail opening file! [%s]\n", filename.c_str());
+	   return 2;
+	}
+
+    this->directed = directed;
+
+    if (directed)
+       INFO("Reading from directed graph! [%s]\n", filename.c_str());
+    else
+       INFO("Reading from undirected graph! [%s]\n", filename.c_str());
+
+	str2id.clear();
+	id2str.clear();
+
+	unsigned m = 0;
     for (string line; getline(stream, line); )
     {
-        istringstream fields(line);
-        string first, second;
-        fields >> first >> second;
-        add_edge(first, second);
+		/*add edge*/
+        istringstream edge(line);
+        string source, dest;
+        edge >> source >> dest;
+
+		if (source.size()==0 || dest.size()==0)
+			continue;
+		// comment
+		if (source[0]=='%' || dest[0]=='%')
+			continue;
+
+		int sid = check_id(source);
+		int did = check_id(dest);
+
+		N = str2id.size();
+		if (edges.size() < N)
+			edges.resize(2*N);
+
+		if (!directed && sid > did)
+			std::swap(sid, did);
+		edges[sid].insert(did);
+		/*add edge*/
+
+		if (++m % 100000 == 0)
+			DEBUG("Already %u lines read.\n", m);
     }
     stream.close();
 
-    // 有可能有重复边 
-    M = 0;
-    for (int i=0; i<N; ++i)
-        M += network[i].size();
+	N = str2id.size();
+	edges.resize(N);
 
-    cout << M << " edges" << endl;
-    cout << N << " nodes" << endl;
+	Nones = 0;
+    for (int i=0; i<N; ++i) {
+		Nones += edges[i].size();
+	}
 
-    // create ground truth communities
-    create_ground_truth(ground);
+	Nzeros = (directed ? (long)N*(N-1) : (long)N*(N-1)/2) - Nones;
 
-    if (heldout) create_heldout(M*0.05, M*0.05);
+	id2str.resize(N);
+	for (auto& m: str2id)
+		id2str[m.second] = m.first;
 
-    if (directed) network2.resize(N);
-    for (int i=0; i<N; ++i)
-        for (auto it=network[i].begin(); it!=network[i].end(); ++it)
-            network2[*it].insert(i);
+	umat locations(2, Nones);
+	for (int i=0, n=0; i<N; ++i)
+		for (auto iter=edges[i].begin(); iter!=edges[i].end(); ++iter)
+		{
+			uvec e = {(unsigned)i, (unsigned)(*iter)};
+			locations.col(n++) = e;
+		}
+	Col<unsigned> values(Nones, fill::ones);
 
-    // 清空str2id, 创建id2str
-    id2str.resize(N);
-    for (auto it=str2id.begin(); it!=str2id.end(); ++it)
-        id2str[it->second] = it->first;
-    str2id.clear();
+	network = SpMat<unsigned>(locations, values);
 
+    INFO("Reading graph finished! [nodes:%d edges:%u]\n", N, Nones);
+
+	return 0;
 }
 
-void Graph::create_ground_truth(const string& ground)
-{
-    ifstream stream(ground);
-    if (stream.is_open())
-    {
-        for (string line; getline(stream, line); )
-        {
-            set<int> s;
-            istringstream fields(line);
-            for (string field; fields >> field; )
-            {
-                if (field.length() == 0)
-                    cerr << "Warning: two consecutive tabs, or tab at the start of a line. Ignoring empty fields like this" << endl;
-                else
-                {
-                    if (str2id.find(field) == str2id.end())
-                        cerr << "Warning: " << field << " not exist in input graph" << endl;
-                        // continue;
-                    else {
-                        s.insert(str2id[field]);
-                        ground_set.insert(str2id[field]);
-                    }
-                }
-            }
-            if (s.size() == 0)
-                cerr << "Warning: ignoring empty sets in file: " << ground << endl;
-            else
-                ground_truth.push_back(s);
-        }
-    }
-}
-
-void
-Graph::add_edge(string start, string end)
-{
-    if (start.size() == 0 || end.size() == 0)
-        return;
-    if (start[0] == '%') {
-        cout << "comment";
-        return;
-    }
-    int startid = get_id(start);
-    int endid = get_id(end);
-    if (network.size() < N)
-        network.resize(N);
-
-    if (directed) {
-        network[startid].insert(endid);
-    } else {
-        if (startid < endid)
-            network[startid].insert(endid);
-        else
-            network[endid].insert(startid);
-    }
-    M++;
-    if (M % 10000 == 0)
-        cout << M << " edges" << flush << '\r';
-}
-
-int
-Graph::get_id(const string& str)
+int Graph::check_id(const string& str)
 { 
-    int id;
-    auto got = str2id.find(str);
-    if (got == str2id.end())
-    {
-        id = str2id.size();
-        str2id[str] = id;
-        N++;
-    }
-    else
-        id = got->second;
-    return id;
+    if (str2id.find(str) == str2id.end())
+        str2id[str] = str2id.size();
+    return str2id[str];
 }
 
-map<pair<int,int>,bool> &
-Graph::create_heldout(size_t size1, size_t size2)
+Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 {
-    cout << "creating heldout set <" << size1 << "> <" << size2 << ">" <<endl;
+	INFO("Start assigning %d heldout sets!\n", num);
+	long total_links = 0, total_nlinks = 0;
 
-    this->heldout.clear();
+	for (int i = 0; i < num; i++)
+	{
+		total_nlinks += sizes[0][i];
+		total_links += sizes[1][i];
+	}
+
+	// check
+	if (total_links >= Nones/10 || total_nlinks >= Nzeros/10)
+	{
+		ERROR("Too many links or nonlinks!\n");
+		return NULL;
+	}
+
+	Heldout *heldouts = new Heldout[num];
+	
+	Heldout::pair_set pools[2];
 
     srand(time(0));
-    while(size2 > 0) {
-        int i,j;
-        do {
-        i = rand()%N;
-        j = rand()%N;
-        } while (i==j || network[i].find(j) != network[i].end());
-        auto ret = heldout.insert(pair<pair<int,int>,bool>(pair<int,int>(i,j), false));
-        if (ret.second==true) size2--;
-    }
-    set<int> ran;
-    while (size1 > 0) {
-        int i = rand()%M;
-        auto ret = ran.insert(i);
-        if (ret.second==true) size1--;
+    while(total_nlinks-- > 0)
+	{
+        int source, dest;
+        do
+		{
+        	source = rand()%N;
+        	dest = rand()%N;
+			if (!directed && source > dest)
+				swap(source, dest);
+        } while (source == dest
+				|| pools[0].count(make_pair(source,dest)) >= 1 
+				|| network(source, dest) != 0);
+
+		pools[0].insert(make_pair(source,dest));
     }
 
-    auto it = ran.begin();
-    auto it_end = ran.end();
+	DEBUG("Finished assigning nonlinks.\n");
 
-    int ni = 0;
-    for (int i=0; i<N; ++i) {
-        for (auto itr=network[i].begin(); itr!=network[i].end(); ++itr) {
-            if (ni == *it) {
-                ++it;
-                heldout.insert(pair<pair<int,int>,bool>(pair<int,int>(i,*itr), true));
-            }
-            if (it==it_end) break;
-            ni++;
-        }
-        if (it==it_end) break;
-    }
-    // erase node pair from network which in heldout
-    for (auto itr=heldout.begin(); itr!=heldout.end(); ++itr)
-        if (itr->second == true) {
-            int i = itr->first.first;
-            int j = itr->first.second;
-            network[i].erase(j);
-            M--;
-        }
-    return heldout;
-}
+	{
+		set<int> tmp;
+		while (tmp.size() < total_links)
+			tmp.insert(rand() % Nones);
 
-void Graph::save_community(vector<set<int>>& comm) {
-    ofstream ofs("communities.txt");
-    for (int k=0; k<comm.size(); ++k) {
-        for (auto itr = comm[k].begin(); itr != comm[k].end(); ++itr)
-            ofs << id2str[*itr] << " ";
-        ofs << endl; 
-    }
-    ofs.close();
-}
+		auto nit = network.begin();
+		int pre = 0;
+		for (auto it=tmp.begin(); it!=tmp.end(); it++)
+		{
+			int adv = *it-pre;
+			pre = *it;
+			while (adv--)
+				++nit;
+			pools[1].insert(make_pair(nit.row(), nit.col()));
+		}
+	}
 
-void Graph::cut(vector<set<int>>& group) {
-    if (ground_set.size() == 0)
-        return;
-    for (int i=0; i<group.size(); ++i) {
-        auto end = group[i].end();
-        auto it = group[i].begin();
-        while (it != end) {
-            if (ground_set.find(*it) == ground_set.end())
-                it = group[i].erase(it);
-            else
-                it++;
-        }
-    }
+	DEBUG("Finished assigning links.\n");
+
+	for (int i=0; i<2; i++)
+	{
+		// i=0:nonlinks i=1:links
+		int bin = 0;
+		for (auto& s : pools[i])
+		{
+			if (heldouts[bin].pairs[i].size() == sizes[i][bin])
+				bin++;
+			heldouts[bin].pairs[i].insert(s);
+		}
+	}
+	INFO("Finished assigning %d heldout sets!\n", num);
+
+    return heldouts;
 }

@@ -1,64 +1,84 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
-#include <iostream>
 #include <sstream>
 #include <fstream>
 #include <string>
-#include <cstdio>
-#include <cstdlib>
 #include <vector>
 #include <unordered_map>
 #include <set>
-#include <map>
 #include <ctime>
+#include <armadillo>
+#include "utils.hpp"
 
 using namespace std;
+using namespace arma;
 
-class Graph {
-
+class Graph
+{
 public:
-    Graph():N(0), M(0){}
+	SpMat<unsigned> network;
 
-    Graph(const string &filename, const string &ground, bool directed) {
-        read_from_file(filename, ground, directed);
+    Graph():N(0),Nones(0),Nzeros(0){}
+
+    Graph(const string &filename, bool directed):N(0),Nones(0),Nzeros(0)
+	{
+        read_from_file(filename, directed);
     }
 
-    void read_from_file(const string &filename, const string &ground, bool directed=true, bool heldout=false);
+    int read_from_file(const string &filename, bool directed);
 
-    int N;//nodenum
+	bool is_directed() const {return directed;}
 
-    int M;//edgenum
-    
-    vector<string> id2str;
+	int n_nodes() const {return N;}
 
-    unordered_map<string, int> str2id;
+	unsigned n_edges() const {return Nones;}
 
-    bool directed;
+	string get_str(int id) const { return id2str[id]; }
 
-    vector<set<int>> network;
+	int get_id(const string& str) const
+	{
+		auto iter = str2id.find(str);
+		if (iter == str2id.end())
+			return -1;
+		return iter->second;
+	}
 
-    vector<set<int>> network2;
+	struct Heldout
+	{
+		typedef set<pair<int,int>> pair_set;
+		Heldout():ones(pairs[1]),zeros(pairs[0]) {}
+		pair_set pairs[2];
+		pair_set &ones; 
+		pair_set &zeros;;
+	};
 
-    map<pair<int,int>, bool> heldout;
+	/* create N heldout sets: */
+	/* sizes[0] is # of nonlinks in each heldout set. */
+	/* sizes[1] is # of links in each heldout set. */
+	Heldout* create_heldouts(int *sizes[2], int N);
 
-    vector<set<int>> ground_truth;
+    // vector<set<int>> ground_truth;
 
-    set<int> ground_set;
+    // set<int> ground_set;
 
-    void add_edge(string start, string end);
-    
-    int get_id(const string& str);
+    // map<pair<int,int>, bool>& create_heldout(size_t size1, size_t size2);
 
-    map<pair<int,int>, bool>& create_heldout(size_t size1, size_t size2);
+    // void cut(vector<set<int>>&);
 
-    virtual void run(int max_iters) = 0;
+    // void save_community(vector<set<int>>&);
 
-    void cut(vector<set<int>>&);
+    // void create_ground_truth(const string&);
 
-    void save_community(vector<set<int>>&);
-
-    void create_ground_truth(const string&);
+private:
+	int N;
+	unsigned long Nones;
+	unsigned long Nzeros;
+	bool directed;
+	vector<set<int>> edges;
+	unordered_map<string, int> str2id;
+	vector<string> id2str;
+    int check_id(const string&);
 };
 
 #endif

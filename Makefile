@@ -1,5 +1,5 @@
 CC = g++
-OBJECTS = main.o graph.o asa103.o gpb.o
+OBJECTS = main.o graph.o asa103.o gpb.o utils.o
 LDFLAGS = -larmadillo
 CPPFLAGS = -std=c++11 -O2
 
@@ -8,4 +8,4 @@ gpb : $(OBJECTS)
 
 
 clean:
-	rm -rf *.o gpb
+	rm -rf *.o

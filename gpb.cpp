@@ -1,143 +1,151 @@
 #include "gpb.hpp"
 
-void GPB::mcmc(int burnin, int sample)
+int GPB::ECHO_PER_ITERS = 1;
+
+int GPB::SAVE_PER_ITERS = 10;
+
+void GPB::gibbs(int burnin, int Ns)
 {
-    init();
-    double lh;
-    cout << "burnin: " << burnin << "   sample: " << sample << endl;
-    for (iter=1; iter<=burnin; iter++) { 
+	INFO("Start Gibbs sampling! [burnin: %d samples: %d]\n", burnin, Ns);
+
+	mat EF(size(F), fill::zeros);
+	mat EB(size(B), fill::zeros);
+
+	double final_elbo = 0;
+
+    for (int iter=1; iter<=burnin+Ns; iter++)
+	{
+		if ((iter-1) > burnin || (iter-1) % ECHO_PER_ITERS == 0)
+		{
+			double elbo = compute_elbo(F, B);
+			if (iter-1 > burnin)
+			{
+				int s = iter- 1 - burnin;
+				final_elbo = final_elbo*((s-1.0)/s) + elbo/s;
+        		EF = EF*((s-1.0)/s) + F/s;
+        		EB = EB*((s-1.0)/s) + B/s;
+				if (s % SAVE_PER_ITERS == 0)
+				{
+					char tmp[50];
+					sprintf(tmp, "%s/%d", dir.c_str(), s);
+					save(tmp, EF, EB);
+				}
+			}
+
+			if ((iter-1) % ECHO_PER_ITERS == 0)
+				INFO("Likelihood after %d iters: %lf\n", iter-1, elbo);
+		}
+
         Bshp.fill(Bpshp);
         Fshp.fill(Fpshp);
         Brte.fill(Bprte);
         Frte.fill(Fprte);
-        for (int i=0; i<N; ++i)
-        {
-            for (auto it = network[i].cbegin(); it != network[i].cend(); ++it)
-            {
-                int j = *it;
-                mat phi = sample_phi(i, j);
-                Fshp.col(i) += sum(phi, 1);
-                Fshp.col(j) += sum(phi, 0).t();
-                Bshp += phi;
-            }
-        }
+
+		for (auto it = graph.network.begin(); it != graph.network.end(); ++it)
+		{
+        	int i = it.row();
+			int j = it.col();
+            mat phi = sample_phi(i, j, sample_deep);
+            Fshp.col(i) += sum(phi, 1);
+            Fshp.col(j) += sum(phi, 0).t();
+            Bshp += phi;
+		}
+
         Frte += (B+B.t())*(repmat(sum(F,1), 1, N) - F);
-        F = sample_F(Fshp, Frte);
-        EF = F;
+        sample_F(Fshp, Frte);
+
         Brte += sum(F,1)*sum(F,1).t() - F*F.t();
-        if (iter <= burnin/2)
-            Brte = 2 * Brte;
-        B = sample_B(Bshp, Brte);
-        EB = B;
-        lh = heldout.size() ? validation_likelihood() : likelihood();
-        cout << setfill('0') << setw(3) << iter << ": " << lh << flush << '\n';
+        sample_B(Bshp, Brte);
     }
 
-    for (int s=1; s<=sample; s++) {
-        Bshp.fill(Bpshp);
-        Fshp.fill(Fpshp);
-        Brte.fill(Bprte);
-        Frte.fill(Fprte);
-        for (int i=0; i<N; ++i)
-        {
-            for (auto it = network[i].cbegin(); it != network[i].cend(); ++it)
-            {
-                int j = *it;
-                mat phi = sample_phi(i, j);
-                Fshp.col(i) += sum(phi, 1);
-                Fshp.col(j) += sum(phi, 0).t();
-                Bshp += phi;
-            }
-        }
-        Frte += (B+B.t())*(repmat(sum(F,1), 1, N) - F);
-        F = sample_F(Fshp, Frte);
-        Brte += sum(F,1)*sum(F,1).t() - F*F.t();
-        B = sample_B(Bshp, Brte);
-        EF = EF*((s-1.0)/s) + F/s;
-        EB = EB*((s-1.0)/s) + B/s;
-        lh = heldout.size() ? validation_likelihood() : likelihood();
-        cout << setfill('0') << setw(3) << s << ": " << lh << flush << '\n';
-    }
+	INFO("Gibbs sampling finished, final likelihood: %lf.\n", final_elbo);
+
+	char tmp[50];
+	sprintf(tmp, "%s/final", dir.c_str());
+	save(tmp, EF, EB);
 }
 
-mat GPB::sample_phi(int i, int j)
+mat GPB::sample_phi(int i, int j, bool sample_deep)
 {
-    mat phi = zeros<mat>(K,K);
-    mat factor = (F.col(i) * F.col(j).t()) % B;
-    double sum = accu(factor);
-    // cout << i << " " << j << " " << sum << endl;
-    poisson_distribution<int> pd(sum);
+    mat factors = (F.col(i) * F.col(j).t()) % B;
+    double rate = accu(factors);
+	factors = factors/rate; // normalize
+	poisson_distribution<int> pd(rate);
+	uniform_real_distribution<double> ud(0,1);
     int num;
-    if (sum < 1) {
-        uniform_real_distribution<double> ud(0, 1);
-        do {
+    if (rate < 1)
+	{
+        do
+		{
             num = pd(generator) + 1;
-        } while (ud(generator) >= 1.0/num);
-    } else { 
-        do {
+        } while (ud(generator) * num >= 1.0);
+    }
+	else
+	{ 
+        do
+		{
             num = pd(generator);
         } while (num == 0);
     }
-    /*
-    uniform_real_distribution<double> urd(0.0, sum);
-    while (num > 0) {
-        double s = urd(generator);
-        double acc = 0;
-        for (int k1=0; k1<K; ++k1) {
-            for (int k2=0; k2<K; ++k2) {
-                acc += factor(k1,k2);
-                if (acc > s) {
-                    phi(k1,k2) += 1;
-                    goto end;
-                }
-            }
-        }
-end: num--;
-    }
-    */
-    phi = (factor/sum)*num;
-    return phi;
+
+	if (sample_deep)
+	{
+		int n_elem = factors.n_elem;
+		vector<double> stairs(n_elem);
+		stairs[0] = factors(0);
+		for (int i = 1; i < n_elem; ++i)
+			stairs[i] = stairs[i-1] + factors(i);
+		factors.zeros();
+		while (num-- > 0)
+		{
+			auto iter = std::lower_bound(stairs.begin(), stairs.end(), ud(generator));
+			factors[iter-stairs.begin()] += 1;
+		}
+	}
+	else
+		factors *= num;
+
+    return factors;
 }
 
-mat GPB::sample_F(mat Fshp, mat Frte)
+void GPB::sample_F(const mat& Fshp, const mat& Frte)
 {
-    mat F = zeros<mat>(K,N);
-    generator.seed(rd());
-    for (int n=0; n<N; ++n) {
-        for (int k=0; k<K; ++k) {
+	int rows = Fshp.n_rows;
+	int cols = Fshp.n_cols;
+    for (int n=0; n<cols; ++n)
+	{
+        for (int k=0; k<rows; ++k)
+		{
             gamma_distribution<double> gd(Fshp(k,n), 1.0/Frte(k,n));
             F(k,n) = gd(generator);
         }
     }
-    return F;
 }
 
-mat GPB::sample_B(mat Bshp, mat Brte)
+void GPB::sample_B(const mat& Bshp, const mat& Brte)
 {
-    // cout << Bshp;
-    // cout << Brte;
-    mat B = zeros<mat>(K,K);
-    generator.seed(rd());
-    for (int k1=0; k1<K; ++k1) {
-        for (int k2=0; k2<K; ++k2) {
+	int rows = Bshp.n_rows;
+	int cols = Bshp.n_cols;
+    for (int k1=0; k1<rows; ++k1)
+	{
+        for (int k2=0; k2<cols; ++k2)
+		{
             gamma_distribution<double> gd(Bshp(k1,k2), 1.0/Brte(k1,k2));
             B(k1,k2) = gd(generator);
         }
     }
-    // cout << B;
-    return B;
 }
 
-void GPB::run(int max_iters)
+/*
+void GPB::vi(int max_iters)
 {
-    init();
     double lh;
     time_t start_time = time(NULL);
     time_t last_time = start_time;
     mat oldEF;
     double delta;
     double li;
-    for (iter=1; max_iters == -1 || iter <= max_iters; ++iter) {
+    for (int iter=1; max_iters == -1 || iter <= max_iters; ++iter) {
         do {
             Fshp.fill(Fpshp);
             Bshp.fill(Bpshp);
@@ -181,7 +189,9 @@ void GPB::run(int max_iters)
     }
     cout << "total seconds: " << last_time - start_time << endl;
 }
+*/
 
+/*
 mat GPB::estimate_phi(int i, int j) {
     mat phi(K,K);
     double logsum;
@@ -201,6 +211,7 @@ mat GPB::estimate_phi(int i, int j) {
     }
     return exp(phi-logsum);
 }
+*/
 /*
 sp_mat GPB::estimate_phi(int i, int j) {
     sp_mat phi(K,K);
@@ -229,50 +240,30 @@ sp_mat GPB::estimate_phi(int i, int j) {
     return phi;
 }
 */
-void GPB::save_model(string dirname) const {
-    if (dirname.back() != '/') 
-        dirname = dirname + '/';
-    EF.save(dirname + "F.dat", arma_ascii);
-    EB.save(dirname + "B.dat", arma_ascii);
-}
 
-void GPB::init() {
-    generator.seed(rd());
+void GPB::init()
+{
+    set_seed(generator);
 
     arma_rng::set_seed_random();
 
+	N = graph.n_nodes();
+
+	F.set_size(K,N);
     Fshp = ones<mat>(K,N) * Fpshp;
     Frte = ones<mat>(K,N) * Fprte;
-    EF = Fshp/Frte;
-    // F = sample_F(Fshp, Frte);
-    F = EF;
+    sample_F(Fshp, Frte);
     ElnF.set_size(K,N);
 
-    // Bshp = eye<mat>(K,K) * 0.8 + randu<mat>(K,K) * 0.01 + Bpshp;
+	B.set_size(K,K);
     Bshp = ones<mat>(K,K) * Bpshp;
     Brte = ones<mat>(K,K) * Bprte;
-    EB = Bshp/Brte;
-    // B = sample_B(Bshp, Brte);
-    B = EB;
-    // B = eye<mat>(K,K) * 0.01;
+    sample_B(Bshp, Brte);
     ElnB.set_size(K,K);
-
-    compute_exp_ln();
-
-    //--------------------//
-    umat location(2,M);
-    for (int i=0, ei=0; i<N; ++i) {
-        for (auto it=network[i].begin(); it!=network[i].end(); ++it, ++ei) {
-            location(0,ei) = i;
-            location(1,ei) = *it;
-        }
-    }
-    ivec values = ones<ivec>(M);
-    sp_imat X(location,values,N,N);
-    this->Network = X;
-    //-------------------//
+    // compute_exp_ln();
 }
 
+/*
 double GPB::validation_likelihood() const {
     double d1 = .0;
     double d2 = .0;
@@ -294,22 +285,26 @@ double GPB::validation_likelihood() const {
     }
     return (d1+d2)/(size1+size2);
 }
+*/
 
-double GPB::likelihood() const {
+double GPB::compute_elbo(const mat& F, const mat& B) const
+{
     double s = .0;
-    for (int i=0; i<N; ++i)
-    {
-        for (auto itr = network[i].begin(); itr != network[i].end(); ++itr)
-        {
-            int j = *itr;
-            double mean = accu((EF.col(i)).t() * EB * EF.col(j));
-            s += log(mean);
-        }
-    }
-    s -= accu(sum(EF,1).t() * EB * sum(EF,1));
+	for (auto it=graph.network.begin(); it!=graph.network.end(); ++it)
+	{
+		int i = it.row();
+        int j = it.col();
+        double mean = accu( F.col(i).t() * B * F.col(j) );
+		double one_prob = 1 - exp(-mean);
+        s += log(one_prob);
+		s -= (-mean);
+	}
+	vec tmp = sum(F,1);
+	s += -accu(tmp.t() * B * tmp);
     return s;
 }
 
+/*
 void GPB::compute_exp_ln() {
     int ifault;
     for (int i=0; i<N; ++i)
@@ -320,35 +315,42 @@ void GPB::compute_exp_ln() {
         for (int k2=0; k2<K; ++k2)
             ElnB(k1,k2) = digamma(Bshp(k1,k2),&ifault) - log(Brte(k1,k2));
 }
+*/
 
-vector<set<int>> GPB::link_community(bool overlap, double thresh)
+mat GPB::link_component()
 {
-    vector<set<int>> ss(K);
     mat component = zeros<mat>(K,N);
 
-    for (int i=0; i<N; ++i) {
-        for (auto it=network[i].cbegin(); it!=network[i].cend(); ++it) {
-            mat phi = sample_phi(i, *it);
-            // cout << phi;
-            component.col(i) += sum(phi,1);
-            component.col(*it) += sum(phi,0).t();
-        }
+	for (auto it=graph.network.begin(); it!=graph.network.end(); ++it)
+	{
+		int i = it.row();
+		int j = it.col();
+        mat phi = F.col(i) * F.col(j).t() % B;
+        component.col(i) += sum(phi,1);
+        component.col(j) += sum(phi,0).t();
     }
-
-    if (overlap) {
-        for (int i=0; i<N; ++i) {
-            for (int k=0; k<K; ++k)
-                if (component(k,i) > thresh)
-                    ss[k].insert(i);
-        }
-    } else {
-        urowvec index = index_max(component, 0);
-        for (int i=0; i<N; ++i)
-            ss[index(i)].insert(i);
-    }
-    return ss;
+	return component;
 }
 
+vector<set<string>> GPB::get_community(const mat& component, bool overlap)
+{
+	vector<set<string>> comm(K); 
+	for (int i = 0; i < N; i++)
+	{
+		if (overlap)
+		{
+			for (int k=0; k<K; k++)
+				if (component(k, i) > 1)
+					comm[k].insert(graph.get_str(i));
+		} 
+		else
+		{
+			comm[component.col(i).index_max()].insert(graph.get_str(i));
+		}
+	}
+	return comm;
+}
+/*
 vector<vector<int>> GPB::node_community(bool overlap, double thresh)
 {
     if (thresh == 0)
@@ -362,13 +364,11 @@ vector<vector<int>> GPB::node_community(bool overlap, double thresh)
             for (int k=0; k<K; ++k)
                 if (EF(k,i) > thresh)
                     ss[k].push_back(i);
-        /*
         for (int k=0; k<K; ++k) {
             vec cur = EF.row(k).t();
             uvec indices = sort_index(cur, "descend");
             for (int i=0; i<N; ++i)
                 ss[k].push_back(indices(i));
-        */
     } else {
         urowvec index = index_max(EF, 0);
         for (int i=0; i<N; ++i)
@@ -376,7 +376,9 @@ vector<vector<int>> GPB::node_community(bool overlap, double thresh)
     }
     return ss;
 }
+*/
 
+/*
 void GPB::save_community(vector<vector<int>>& comm) {
     ofstream ofs("communities.txt");
     for (int k=0; k<K; k++) {
@@ -385,4 +387,17 @@ void GPB::save_community(vector<vector<int>>& comm) {
         ofs << endl;
     }
     ofs.close();
+}
+*/
+
+void GPB::save(const string& prefix, const mat& F, const mat& B) const
+{
+	F.save(prefix+"_F.txt", arma_ascii);
+	B.save(prefix+"_B.txt", arma_ascii);
+}
+
+void GPB::load(const string& prefix)
+{
+	F.load(prefix+"_F.txt");
+	B.load(prefix+"_B.txt");
 }

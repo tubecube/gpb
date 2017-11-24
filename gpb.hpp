@@ -31,8 +31,6 @@ public:
 
 	void load(const string& prefix);
 
-    // void save_community(vector<vector<int>>& comm);
-
 	mat link_component();
 
 	vector<set<string>> get_community(const mat& component, bool overlap=false);

@@ -350,45 +350,6 @@ vector<set<string>> GPB::get_community(const mat& component, bool overlap)
 	}
 	return comm;
 }
-/*
-vector<vector<int>> GPB::node_community(bool overlap, double thresh)
-{
-    if (thresh == 0)
-        thresh = sqrt(-log(1 - 1.0/N));
-    vector<vector<int>> ss(K);
-    // mat component = normalise(EF, 1, 0);
-    // cout << component;
-    if (overlap) {
-        
-        for (int i=0; i<N; ++i)
-            for (int k=0; k<K; ++k)
-                if (EF(k,i) > thresh)
-                    ss[k].push_back(i);
-        for (int k=0; k<K; ++k) {
-            vec cur = EF.row(k).t();
-            uvec indices = sort_index(cur, "descend");
-            for (int i=0; i<N; ++i)
-                ss[k].push_back(indices(i));
-    } else {
-        urowvec index = index_max(EF, 0);
-        for (int i=0; i<N; ++i)
-            ss[index(i)].push_back(i);
-    }
-    return ss;
-}
-*/
-
-/*
-void GPB::save_community(vector<vector<int>>& comm) {
-    ofstream ofs("communities.txt");
-    for (int k=0; k<K; k++) {
-        for (int idx=0; idx<comm[k].size(); idx++)
-            ofs << id2str[comm[k][idx]] << ":" << EF(k,comm[k][idx]) << "\t";
-        ofs << endl;
-    }
-    ofs.close();
-}
-*/
 
 void GPB::save(const string& prefix, const mat& F, const mat& B) const
 {

@@ -11,18 +11,20 @@ using namespace std;
 
 void usage()
 {
-    cout << "USAGE: gpb INPUT_FILE [-u][-h][-v][-k ?][-m ?][-b ?][-s ?][-Fpshp ?][-Fprte ?][-Bpshp ?][-Bprte ?]\n";
+    cout << "USAGE: gpb INPUT_FILE [-u][-h][-v][-d][-k ?][-m ?][-b ?][-s ?][-g ?][-a ?][-Fpshp ?][-Fprte ?][-Bpshp ?][-Bprte ?]\n";
 	cout << "\n";
     cout << "OPTIONAL parameters:\n";
     cout << "-u: indicate an undirected graph\n";
     cout << "-h: use a heldout set\n";
     cout << "-v: use variational inference\n";
+	cout << "-d: sample deep\n";
 	cout << "-k ?: input dimensions(default: 10)\n";
     cout << "-m ?: max iterations in vi(default: 100)\n";
     cout << "-b ?: burnin in Gibbs sampling(default: 50)\n";
     cout << "-n ?: samples in Gibbs sampling(default: 50)\n";
 	cout << "-s ?: directory to save model(default: model_k)\n";
 	cout << "-g ?: ground truth filename(default: None)\n";
+	cout << "-a ?: factor for block matirx's diagnal shape priors(defalut: 1)\n";
     cout << "-Fpshp ?: hyper parameters(default: 0.3)\n";
     cout << "-Fprte ?: hyper parameters(default: 1.0)\n";
     cout << "-Bpshp ?: hyper parameters(default: 0.3)\n";
@@ -42,10 +44,12 @@ int main(int argc, char* argv[]) {
     bool directed = true;
     bool heldout = false;
 	bool Gibbs = true;
+	bool sample_deep = false;
 	int K = 10;
     int vimax = 100;
     int Ns = 50;
     int burnin = 50;
+	int Alpha = 1;
     double Fpshp = 0.3;
     double Fprte = 1.0;
     double Bpshp = 0.3;
@@ -83,6 +87,9 @@ int main(int argc, char* argv[]) {
         else if (strcmp(argv[i], "-h")==0)
             heldout = true;
 
+		else if (strcmp(argv[i], "-d")==0)
+			sample_deep = true;
+
 		// hyperparameters
         else if (strcmp(argv[i], "-Fpshp")==0)
             Fpshp = atof(argv[++i]);
@@ -99,6 +106,10 @@ int main(int argc, char* argv[]) {
 
 		else if (strcmp(argv[i], "-g")==0)
 			ground_truth = argv[++i];
+
+		else if (strcmp(argv[i], "-a")==0)
+			Alpha = atoi(argv[++i]);
+
 		else {
 			usage();
 			exit(1);
@@ -111,17 +122,19 @@ int main(int argc, char* argv[]) {
 
 	Graph graph = Graph(input, directed);
 
-    GPB *gpb = new GPB(graph, K, Fpshp, Fprte, Bpshp, Bprte, save_dir.c_str());
+    GPB gpb(graph, K, Fpshp, Fprte, Bpshp, Bprte, save_dir.c_str(), sample_deep, Alpha);
 
-    if (Gibbs)	gpb->gibbs(burnin, Ns);
+    if (Gibbs)	gpb.gibbs(burnin, Ns);
     // else	gpb->vi(vimax);
 
-	vector<set<string>> community = gpb->get_community(gpb->link_component());
+	vector<set<string>> community = gpb.get_community(gpb.link_component());
 	Metrics<string>::set_to_file(save_dir+"/community.dat", community);
 	if (ground_truth.size() > 0)
 	{
-		vector<set<string>> base = Metrics<string>::file_to_set2(ground_truth);
+		vector<set<string>> base = Metrics<string>::file_to_set1(ground_truth);
     	Metrics<string>::F1(community, base);
+		Metrics<string>::NNMI(community, base);
+		Metrics<string>::ONMI(community, base);
 	}
     return 0;
 }

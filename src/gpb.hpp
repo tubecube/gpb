@@ -14,13 +14,13 @@ using namespace arma;
 class GPB {
 
 public:
-    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=true):
+    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=false, int alpha=1):
     	graph(g), K(k), Fpshp(Fpshp), Fprte(Fprte), Bpshp(Bpshp), Bprte(Bprte), dir(dir), sample_deep(sample_deep) 
 	{ 
-		const char* tmp = (graph.is_directed() ? "directed" : "undirected");
-		INFO("GPB settings: graph(%d nodes, %d edges, %s).\n", graph.n_nodes(), graph.n_edges(), tmp); 
-		INFO("GPB settings: K(%d), Fpshp(%lf), Fprte(%lf), Bpshp(%lf), Bprte(%lf).\n", K, Fpshp, Fprte, Bpshp, Bprte);
-		init();
+		INFO("GPB settings: %s graph with %d nodes %d edges.\n", (graph.is_directed() ? "Directed" : "Undirected"), graph.n_nodes(), graph.n_edges()); 
+		INFO("GPB settings: K(%d), alpha(%d), %s.\n", K, alpha, (sample_deep ? "sample deep" : "not sample deep"));
+		INFO("GPB settings: Fpshp(%lf), Fprte(%lf), Bpshp(%lf), Bprte(%lf).\n", K, alpha, Fpshp, Fprte, Bpshp, Bprte);
+		init(alpha);
 	}
 
     void gibbs(int burnin, int Ns);
@@ -76,7 +76,7 @@ private:
 
 	bool sample_deep;
 
-    void init();
+    void init(int alpha=1);
 
     // mat estimate_phi(int i, int j);
 

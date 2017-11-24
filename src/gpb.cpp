@@ -241,7 +241,7 @@ sp_mat GPB::estimate_phi(int i, int j) {
 }
 */
 
-void GPB::init()
+void GPB::init(int alpha)
 {
     set_seed(generator);
 
@@ -250,14 +250,14 @@ void GPB::init()
 	N = graph.n_nodes();
 
 	F.set_size(K,N);
-    Fshp = ones<mat>(K,N) * Fpshp;
-    Frte = ones<mat>(K,N) * Fprte;
+    Fshp = randu<mat>(K,N) * Fpshp;
+    Frte = randu<mat>(K,N) * Fprte;
     sample_F(Fshp, Frte);
     ElnF.set_size(K,N);
 
 	B.set_size(K,K);
-    Bshp = ones<mat>(K,K) * Bpshp;
-    Brte = ones<mat>(K,K) * Bprte;
+    Bshp = randu<mat>(K,K) % ((alpha-1)*eye<mat>(K,K) + ones<mat>(K,K) * Bpshp);
+    Brte = randu<mat>(K,K) % (ones<mat>(K,K) * Bprte);
     sample_B(Bshp, Brte);
     ElnB.set_size(K,K);
     // compute_exp_ln();

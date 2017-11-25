@@ -15,7 +15,7 @@ vector<set<T>> Metrics<T>::file_to_set2(const string& filename)
 				ground.resize(comm+1);
 			ground[comm].insert(node);
 		}
-	} else ERROR("Fail opening file! [%s]\n", filename.c_str());
+	} else ERROR("Metric: fail opening file! [%s]\n", filename.c_str());
 	return ground;
 }
 
@@ -34,16 +34,16 @@ vector<set<T>> Metrics<T>::file_to_set1(const string& filename)
 			for (T field; fields >> field; )
 			{
 				if (field.length() == 0)
-					WARN("Two consecutive tabs, or tab at the start of a line. Ignoring empty fields like this.\n");
+					WARN("Metric: two consecutive tabs, or tab at the start of a line. Ignoring empty fields like this.\n");
 				else
 					s.insert(field);
 			}
 			if (s.size() == 0)
-				WARN("Ignoring empty sets.\n");
+				WARN("Metric: ignoring empty sets.\n");
 			else
 				ground.push_back(s);
 		}
-	} else ERROR("Fail opening file! [%s]\n", filename.c_str());
+	} else ERROR("Metric: fail opening file! [%s]\n", filename.c_str());
 
     return ground;
 }
@@ -101,7 +101,7 @@ template <class T>
 double Metrics<T>::NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
 {
     if (is_overlap(g1) || is_overlap(g2))
-        WARN("Group1 or group2 may overlap!\n");
+        WARN("Metric: group1 or group2 may overlap!\n");
 
     size_t n1 = g1.size();
     size_t n2 = g2.size();
@@ -151,7 +151,7 @@ double Metrics<T>::NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
     normalizer /= 2;
 
     double NMI = MI/normalizer;
-    INFO("NMI: %lf\n",NMI);
+    INFO("Metric: NMI: %lf\n",NMI);
     return NMI;
 }
 
@@ -159,7 +159,7 @@ template<class T>
 double Metrics<T>::ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
 {
     if (!is_overlap(g1) && !is_overlap(g2))
-        WARN("Group1 and group2 are both disjoint!\n");
+        WARN("Metric: group1 and group2 are both disjoint!\n");
     
     set<T> ss;
     for (int i=g1.size()-1; i>=0; i--)
@@ -178,9 +178,9 @@ double Metrics<T>::ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
     double NMIMAX = 0.5 * ( (HX-HXgivenY)/max(HX, HY) + (HY-HYgivenX)/max(HX, HY) );
     double NMISUM = 0.5 * ( (HX-HXgivenY)/((HX+HY)/2) + (HY-HYgivenX)/((HX+HY)/2) );
 
-    INFO("NMI_lfk: %lf\n", NMILFK);
-    INFO("NMI_max: %lf\n", NMIMAX);
-    INFO("NMI_sum: %lf\n", NMISUM);
+    INFO("Metric: NMI_lfk: %lf\n", NMILFK);
+    INFO("Metric: NMI_max: %lf\n", NMIMAX);
+    INFO("Metric: NMI_sum: %lf\n", NMISUM);
 
     return NMILFK;
 }
@@ -257,7 +257,7 @@ template <class T>
 double Metrics<T>::F1(const vector< set<T> >& g1, const vector< set<T> >& g2)
 {
     double score = 0.5 * (F1_one_turn(g1, g2) + F1_one_turn(g2, g1));
-    INFO("F1: %lf\n", score);
+    INFO("Metric: F1: %lf\n", score);
     return score;
 }
 

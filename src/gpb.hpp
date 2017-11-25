@@ -14,18 +14,18 @@ using namespace arma;
 class GPB {
 
 public:
-    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=false, int alpha=1):
-    	graph(g), K(k), Fpshp(Fpshp), Fprte(Fprte), Bpshp(Bpshp), Bprte(Bprte), dir(dir), sample_deep(sample_deep) 
+    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=true, int alpha=1):
+    	graph(g), K(k), Fpshp(Fpshp), Fprte(Fprte), Bpshp(Bpshp), Bprte(Bprte), save_dir(dir), sample_deep(sample_deep) 
 	{ 
-		INFO("GPB settings: %s graph with %d nodes %d edges.\n", (graph.is_directed() ? "Directed" : "Undirected"), graph.n_nodes(), graph.n_edges()); 
-		INFO("GPB settings: K(%d), alpha(%d), %s.\n", K, alpha, (sample_deep ? "sample deep" : "not sample deep"));
-		INFO("GPB settings: Fpshp(%lf), Fprte(%lf), Bpshp(%lf), Bprte(%lf).\n", K, alpha, Fpshp, Fprte, Bpshp, Bprte);
+		Logger::setup_log_dir(save_dir);
+		Logger::setup_logfd(save_dir+"/log.txt");
+		INFO("GPB: %s graph with %d nodes %d edges.\n", (graph.is_directed() ? "directed" : "undirected"), graph.n_nodes(), graph.n_edges()); 
+		INFO("GPB: K(%d), alpha(%d), %s.\n", K, alpha, (sample_deep ? "sample deep" : "not sample deep"));
+		INFO("GPB: Fpshp(%lf), Fprte(%lf), Bpshp(%lf), Bprte(%lf).\n", K, alpha, Fpshp, Fprte, Bpshp, Bprte);
 		init(alpha);
 	}
 
     void gibbs(int burnin, int Ns);
-
-    // void vi(int max_iters);
 
     void save(const string& prefix, const mat& F, const mat& B) const;
 
@@ -44,7 +44,7 @@ public:
 
 	static int SAVE_PER_ITERS;
 
-	void set_dir(string dir) {this->dir = dir;}
+	void set_dir(string dir) {this->save_dir = dir;}
 
 private:
 	const Graph& graph;
@@ -65,11 +65,7 @@ private:
 
     mat Fshp;
     
-    mat ElnF;
-
     mat F;
-
-    mat ElnB;
 
     mat Bshp;
 
@@ -77,20 +73,15 @@ private:
 
     mat B;
 
-	string dir;
+	string save_dir;
 
 	bool sample_deep;
 
     void init(int alpha=1);
 
-    // mat estimate_phi(int i, int j);
-
     double compute_elbo(const mat& F, const mat& B) const;
 
-
 	//double heldout_likelihood(const Graph::Heldout& heldout) const;
-
-    // void compute_exp_ln();
 
     mat sample_phi(int i, int j, bool sample_deep);
 

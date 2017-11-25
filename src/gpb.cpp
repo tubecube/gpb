@@ -1,6 +1,6 @@
 #include "gpb.hpp"
 
-int GPB::ECHO_PER_ITERS = 1;
+int GPB::ECHO_PER_ITERS = 2;
 
 int GPB::SAVE_PER_ITERS = 10;
 
@@ -29,7 +29,7 @@ void GPB::gibbs(int burnin, int Ns)
 				if (s % SAVE_PER_ITERS == 0)
 				{
 					char tmp[50];
-					sprintf(tmp, "%s/%d", dir.c_str(), s);
+					sprintf(tmp, "%s/%d", save_dir.c_str(), s);
 					save(tmp, EF, EB);
 				}
 			}
@@ -68,10 +68,10 @@ void GPB::gibbs(int burnin, int Ns)
         sample_B(Bshp, Brte);
     }
 	F = EF; B = EB;
-	INFO("GPB: gibbs sampling finished, final likelihood: %lf.\n", final_elbo);
+	INFO("GPB: gibbs sampling finished, final likelihood: %lf\n", final_elbo);
 
 	char tmp[50];
-	sprintf(tmp, "%s/final", dir.c_str());
+	sprintf(tmp, "%s/final", save_dir.c_str());
 	save(tmp, EF, EB);
 }
 
@@ -104,7 +104,7 @@ mat GPB::sample_phi(int i, int j, bool sample_deep)
 		factors.zeros();
 		while (num-- > 0)
 		{
-			auto iter = std::lower_bound(stairs.begin(), stairs.end(), ud(generator));
+			vector<double>::iterator iter = std::lower_bound(stairs.begin(), stairs.end(), ud(generator));
 			factors[iter-stairs.begin()] += 1;
 		}
 	}
@@ -269,9 +269,6 @@ void GPB::init(int alpha)
     Bshp = randu<mat>(K,K) % ((alpha-1)*eye<mat>(K,K) + ones<mat>(K,K) * Bpshp);
     Brte = randu<mat>(K,K) % (ones<mat>(K,K) * Bprte);
     sample_B(Bshp, Brte);
-	if (!graph.is_directed())
-		B = (B + B.t()) / 2;
-    // compute_exp_ln();
 }
 
 double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thresh) const
@@ -302,12 +299,14 @@ double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thres
 		pool[0].push_back(one_prob);
 	}
 
+	/*
 	for (int i=0; i<2; i++)
 	{
 		for (auto prob : pool[i])
 			cout << prob << " ";
 		cout << endl;
 	}
+	*/
 
 	double acc0 = 0.0;
 	double acc1 = 0.0;
@@ -345,7 +344,7 @@ double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thres
 			}
 		}
 		thresh = best_thresh;
-		INFO("GPB: best accuracy %lf obtained when thresh is %lf.\n", best_acc, best_thresh);
+		INFO("GPB: best accuracy %lf obtained when thresh is %lf\n", best_acc, best_thresh);
 	}
 	else
 	{
@@ -365,7 +364,7 @@ double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thres
 		acc1 = (double)TP/N1;
 		acc0 = (double)TN/N0;
 		best_acc = acc1 * test.ratio1 + acc0 * test.ratio0;
-		INFO("GPB: accuracy %lf obtained when thresh is %lf.\n", best_acc, thresh);
+		INFO("GPB: accuracy %lf obtained when thresh is %lf\n", best_acc, thresh);
 	}
 	return best_acc;
 }

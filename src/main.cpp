@@ -22,9 +22,9 @@ void usage()
     cout << "-u: indicate an undirected graph\n";
     cout << "-test: use a heldout set for link prediction\n";
 	cout << "-grid: use grid search for link prediction\n";
-	cout << "-deep: sample deep\n";
 	cout << "-dir ?: directory to save model(default: model_k)\n";
 	cout << "-alpha ?: factor for block matirx's diagnal shape priors(defalut: 1)\n";
+	cout << "-ndeep: not sample deep\n";
     cout << "-Fpshp ?: hyper parameters(default: 0.3)\n";
     cout << "-Fprte ?: hyper parameters(default: 1.0)\n";
     cout << "-Bpshp ?: hyper parameters(default: 0.3)\n";
@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
     bool directed = true;
     bool heldout = false;
 	bool Gibbs = true;
-	bool sample_deep = false;
+	bool sample_deep = true;
 	bool grid = false;
 	string ground_truth="";
 	Metrics<string>::file_type type = Metrics<string>::type1;
@@ -84,8 +84,8 @@ int main(int argc, char* argv[]) {
 		else if (strcmp(argv[i], "-grid")==0)
 			grid = true;
 
-		else if (strcmp(argv[i], "-deep")==0)
-			sample_deep = true;
+		else if (strcmp(argv[i], "-ndeep")==0)
+			sample_deep = false;
 
 		// hyperparameters
         else if (strcmp(argv[i], "-Fpshp")==0)
@@ -117,8 +117,7 @@ int main(int argc, char* argv[]) {
     }
 
 	if (save_dir.size() == 0)
-		save_dir = "model_" + to_string(K);
-	makedir(save_dir.c_str());
+		save_dir = "gpb_" + to_string(K);
 
 	Graph graph = Graph(input, directed);
 

@@ -46,6 +46,7 @@ public:
 
 	struct Heldout
 	{
+		// pair unhashable
 		typedef set<pair<int,int>> pair_set;
 		Heldout():ones(pairs[1]),zeros(pairs[0]) {}
 		pair_set pairs[2];

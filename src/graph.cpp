@@ -101,7 +101,8 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 	}
 
 	// check
-	if (total_links >= Nones/10 || total_nlinks >= Nzeros/10)
+	int ratio = 10;
+	if (total_links >= Nones/ratio || total_nlinks >= Nzeros/ratio)
 	{
 		ERROR("Too many links or nonlinks!\n");
 		return NULL;
@@ -111,6 +112,7 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 	
 	Heldout::pair_set pools[2];
 
+	/* assigning non links */
     srand(time(0));
     while (total_nlinks-- > 0)
 	{
@@ -130,42 +132,36 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 
 	DEBUG("Finished assigning nonlinks.\n");
 
-	{
-		set<int> tmp;
-		while (tmp.size() < total_links)
-			tmp.insert(rand() % Nones);
+	set<unsigned> eindexes;
+	while (eindexes.size() < total_links)
+		eindexes.insert(rand() % Nones);
 
-		auto nit = network.begin();
-		int pre = 0;
-		vector<pair<int,int>> trash;
-		for (auto it=tmp.begin(); it!=tmp.end(); it++)
-		{
-			int adv = *it-pre;
-			pre = *it;
-			while (adv--)
-				++nit;
-			int i = nit.row(), j = nit.col();
-			pools[1].insert(make_pair(i, j));
-			// delete from network
-			trash.push_back(make_pair(i, j));
-		}
-		for (auto& pair : trash)
-		{
-			network(pair.first, pair.second) = 0;
-		}
+	auto nit = network.begin();
+	unsigned pre = 0;
+	for (set<unsigned>::iterator it=eindexes.begin(); it!=eindexes.end(); it++)
+	{
+		unsigned adv = *it-pre;
+		pre = *it;
+		while (adv--)
+			++nit;
+		int i = nit.row(), j = nit.col();
+		pools[1].insert(make_pair(i, j));
+	}
+	for (const pair<int,int>& pr : pools[1])
+	{
+		network(pr.first, pr.second) = 0;
 	}
 
 	DEBUG("Finished assigning links.\n");
 
 	for (int i=0; i<2; i++)
 	{
-		// i=0:nonlinks i=1:links
 		int bin = 0;
-		for (auto& s : pools[i])
+		for (const pair<int,int>& pr : pools[i])
 		{
 			if (heldouts[bin].pairs[i].size() == sizes[i][bin])
 				bin++;
-			heldouts[bin].pairs[i].insert(s);
+			heldouts[bin].pairs[i].insert(pr);
 		}
 	}
 
@@ -174,6 +170,7 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 		heldouts[bin].ratio1 = ratio1;
 		heldouts[bin].ratio0 = ratio0;
 	}
+
 	INFO("Finished assigning %d heldout sets!\n", num);
 
     return heldouts;

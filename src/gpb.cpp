@@ -13,6 +13,8 @@ void GPB::gibbs(int burnin, int Ns)
 
 	double final_elbo = 0;
 
+	bool directed = graph.is_directed();
+
     for (int iter=1; iter<=burnin+Ns; iter++)
 	{
 		if ((iter-1) > burnin || (iter-1) % ECHO_PER_ITERS == 0)
@@ -31,7 +33,6 @@ void GPB::gibbs(int burnin, int Ns)
 					save(tmp, EF, EB);
 				}
 			}
-
 			if ((iter-1) % ECHO_PER_ITERS == 0)
 				INFO("Likelihood after %d iters: %lf\n", iter-1, elbo);
 		}
@@ -48,13 +49,22 @@ void GPB::gibbs(int burnin, int Ns)
             mat phi = sample_phi(i, j, sample_deep);
             Fshp.col(i) += sum(phi, 1);
             Fshp.col(j) += sum(phi, 0).t();
-            Bshp += phi;
+			if (directed)
+            	Bshp += phi;
+			else
+				Bshp += (phi+phi.t()) / 2;
 		}
 
-        Frte += (B+B.t())*(repmat(sum(F,1), 1, N) - F);
+		if (directed)
+        	Frte += (B+B.t())*(repmat(sum(F,1), 1, N) - F);
+		else
+        	Frte += B*(repmat(sum(F,1), 1, N) - F);
         sample_F(Fshp, Frte);
 
-        Brte += sum(F,1)*sum(F,1).t() - F*F.t();
+		if (directed)
+			Brte += sum(F,1)*sum(F,1).t() - F*F.t();
+		else
+			Brte += (sum(F,1)*sum(F,1).t() - F*F.t()) / 2;
         sample_B(Bshp, Brte);
     }
 	F = EF; B = EB;
@@ -75,17 +85,13 @@ mat GPB::sample_phi(int i, int j, bool sample_deep)
     int num;
     if (rate < 1)
 	{
-        do
-		{
-            num = pd(generator) + 1;
-        } while (ud(generator) * num >= 1.0);
+        do num = pd(generator) + 1;
+        while (ud(generator) * num >= 1.0);
     }
 	else
 	{ 
-        do
-		{
-            num = pd(generator);
-        } while (num == 0);
+        do num = pd(generator);
+        while (num == 0);
     }
 
 	if (sample_deep)
@@ -101,15 +107,9 @@ mat GPB::sample_phi(int i, int j, bool sample_deep)
 			auto iter = std::lower_bound(stairs.begin(), stairs.end(), ud(generator));
 			factors[iter-stairs.begin()] += 1;
 		}
-		if (!graph.is_directed())
-			factors = factors + factors.t();
 	}
 	else
-	{
 		factors *= num;
-		if (!graph.is_directed())
-			factors *= 2;
-	}
 
     return factors;
 }
@@ -134,27 +134,17 @@ void GPB::sample_B(const mat& Bshp, const mat& Brte)
 	int rows = Bshp.n_rows;
 	int cols = Bshp.n_cols;
 	B.zeros();
-	if (graph.is_directed())
+	bool directed = graph.is_directed();
+	for (int k1=0; k1<rows; ++k1)
 	{
-		for (int k1=0; k1<rows; ++k1)
+		for (int k2 = directed ? 0 : k1; k2<cols; ++k2)
 		{
-			for (int k2=0; k2<cols; ++k2)
-			{
-				gamma_distribution<double> gd(Bshp(k1,k2), 1.0/Brte(k1,k2));
-				B(k1,k2) = gd(generator);
-			}
+			gamma_distribution<double> gd(Bshp(k1,k2), 1.0/Brte(k1,k2));
+			B(k1,k2) = gd(generator);
 		}
 	}
-	else
+	if (!directed)
 	{
-		for (int k1=0; k1<rows; ++k1)
-		{
-			for (int k2=k1; k2<cols; ++k2)
-			{
-				gamma_distribution<double> gd(Bshp(k1,k2), 1.0/Brte(k1,k2));
-				B(k1,k2) = gd(generator);
-			}
-		}
 		B = B + B.t();
 		B.diag() /= 2;
 	}

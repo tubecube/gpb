@@ -11,7 +11,7 @@ using namespace std;
 
 void usage()
 {
-    cout << "USAGE: gpb INPUT_FILE [-u][-h][-v][-d][-k ?][-m ?][-b ?][-s ?][-g ?][-a ?][-Fpshp ?][-Fprte ?][-Bpshp ?][-Bprte ?]\n";
+    cout << "USAGE: gpb INPUT_FILE\n";
 	cout << "\n";
     cout << "OPTIONAL parameters:\n";
     cout << "-u: indicate an undirected graph\n";
@@ -19,7 +19,7 @@ void usage()
 	cout << "-grid: use grid search for link prediction\n";
     cout << "-vi: use variational inference\n";
 	cout << "-deep: sample deep\n";
-	cout << "-k ?: input dimensions(default: 10)\n";
+	cout << "-k ?: feature vector dimensions(default: 10)\n";
     cout << "-vimax ?: max iterations in vi(default: 100)\n";
     cout << "-burn ?: Gibbs sampling burnin(default: 50)\n";
     cout << "-ns ?: samples in Gibbs sampling(default: 50)\n";

@@ -14,17 +14,16 @@ void usage()
     cout << "USAGE: gpb INPUT_FILE\n";
 	cout << "\n";
     cout << "OPTIONAL parameters:\n";
+	cout << "-k ?: feature vector dimensions(default: 10)\n";
+	cout << "-ground ?: ground truth filename(default: None)\n";
+	cout << "-type2: ground truth file with type2\n";
+    cout << "-burn ?: Gibbs sampling burnin(default: 50)\n";
+    cout << "-ns ?: samples in Gibbs sampling(default: 50)\n";
     cout << "-u: indicate an undirected graph\n";
     cout << "-test: use a heldout set for link prediction\n";
 	cout << "-grid: use grid search for link prediction\n";
-    cout << "-vi: use variational inference\n";
 	cout << "-deep: sample deep\n";
-	cout << "-k ?: feature vector dimensions(default: 10)\n";
-    cout << "-vimax ?: max iterations in vi(default: 100)\n";
-    cout << "-burn ?: Gibbs sampling burnin(default: 50)\n";
-    cout << "-ns ?: samples in Gibbs sampling(default: 50)\n";
 	cout << "-dir ?: directory to save model(default: model_k)\n";
-	cout << "-ground ?: ground truth filename(default: None)\n";
 	cout << "-alpha ?: factor for block matirx's diagnal shape priors(defalut: 1)\n";
     cout << "-Fpshp ?: hyper parameters(default: 0.3)\n";
     cout << "-Fprte ?: hyper parameters(default: 1.0)\n";
@@ -47,8 +46,9 @@ int main(int argc, char* argv[]) {
 	bool Gibbs = true;
 	bool sample_deep = false;
 	bool grid = false;
+	string ground_truth="";
+	Metrics<string>::file_type type = Metrics<string>::type1;
 	int K = 10;
-    int vimax = 100;
     int Ns = 50;
     int burnin = 50;
 	int Alpha = 1;
@@ -57,7 +57,6 @@ int main(int argc, char* argv[]) {
     double Bpshp = 0.3;
     double Bprte = 1.0;
     string save_dir="";
-	string ground_truth="";
 	Graph::Heldout* hp = NULL;
 
     for (int i=2; i<argc; ++i)
@@ -65,14 +64,6 @@ int main(int argc, char* argv[]) {
 		// number of dimensions
 		if (strcmp(argv[i], "-k")==0)
 			K = atoi(argv[++i]);
-
-		// use variational inference instead of Gibbs sampling
-		else if (strcmp(argv[i], "-vi")==0)
-			Gibbs = false;
-
-		// variational inference max iterations
-		else if (strcmp(argv[i], "-vimax")==0)
-            vimax = atoi(argv[++i]);
 
 		// burnin in Gibbs sampling
         else if (strcmp(argv[i], "-burn")==0)
@@ -113,6 +104,9 @@ int main(int argc, char* argv[]) {
 		else if (strcmp(argv[i], "-ground")==0)
 			ground_truth = argv[++i];
 
+		else if (strcmp(argv[i], "-type2")==0)
+			type = Metrics<string>::type2;
+
 		else if (strcmp(argv[i], "-alpha")==0)
 			Alpha = atoi(argv[++i]);
 
@@ -151,7 +145,7 @@ int main(int argc, char* argv[]) {
 	Metrics<string>::set_to_file(save_dir+"/community.dat", community);
 	if (ground_truth.size() > 0)
 	{
-		vector<set<string>> base = Metrics<string>::file_to_set1(ground_truth);
+		vector<set<string>> base = Metrics<string>::file_to_set(ground_truth, type);
     	Metrics<string>::F1(community, base);
 		Metrics<string>::NNMI(community, base);
 		Metrics<string>::ONMI(community, base);

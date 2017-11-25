@@ -5,16 +5,16 @@ int Graph::read_from_file(const string& filename, bool directed)
     ifstream stream(filename);
     if (stream.is_open() == false)
 	{
-       ERROR("Fail opening file! [%s]\n", filename.c_str());
+       ERROR("Graph: fail opening file! [%s]\n", filename.c_str());
 	   return 2;
 	}
 
     this->directed = directed;
 
     if (directed)
-       INFO("Reading from directed graph! [%s]\n", filename.c_str());
+       INFO("Graph: reading from directed graph! [%s]\n", filename.c_str());
     else
-       INFO("Reading from undirected graph! [%s]\n", filename.c_str());
+       INFO("Graph: reading from undirected graph! [%s]\n", filename.c_str());
 
 	str2id.clear();
 	id2str.clear();
@@ -46,7 +46,7 @@ int Graph::read_from_file(const string& filename, bool directed)
 		/*add edge*/
 
 		if (++m % 100000 == 0)
-			DEBUG("Already %u lines read.\n", m);
+			DEBUG("Graph: already %u lines read.\n", m);
     }
     stream.close();
 
@@ -77,7 +77,7 @@ int Graph::read_from_file(const string& filename, bool directed)
 			network(i, j) = 1;
 		}
 
-    INFO("Reading graph finished! [nodes:%d edges:%u]\n", N, Nones);
+    INFO("Graph: reading graph finished! [nodes:%d edges:%u]\n", N, Nones);
 
 	return 0;
 }
@@ -91,7 +91,7 @@ int Graph::check_id(const string& str)
 
 Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 {
-	INFO("Start assigning %d heldout sets!\n", num);
+	INFO("Graph: start assigning %d heldout sets!\n", num);
 	long total_links = 0, total_nlinks = 0;
 
 	for (int i = 0; i < num; i++)
@@ -104,7 +104,7 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 	int ratio = 10;
 	if (total_links >= Nones/ratio || total_nlinks >= Nzeros/ratio)
 	{
-		ERROR("Too many links or nonlinks!\n");
+		ERROR("Graph: too many links or nonlinks to assign!\n");
 		return NULL;
 	}
 
@@ -130,7 +130,7 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 		pools[0].insert(make_pair(source,dest));
     }
 
-	DEBUG("Finished assigning nonlinks.\n");
+	DEBUG("Graph: finished assigning nonlinks.\n");
 
 	set<unsigned> eindexes;
 	while (eindexes.size() < total_links)
@@ -152,7 +152,7 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 		network(pr.first, pr.second) = 0;
 	}
 
-	DEBUG("Finished assigning links.\n");
+	DEBUG("Graph: finished assigning links.\n");
 
 	for (int i=0; i<2; i++)
 	{
@@ -171,7 +171,7 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 		heldouts[bin].ratio0 = ratio0;
 	}
 
-	INFO("Finished assigning %d heldout sets!\n", num);
+	INFO("Graph: finished assigning %d heldout sets!\n", num);
 
     return heldouts;
 }

@@ -6,7 +6,7 @@ int GPB::SAVE_PER_ITERS = 10;
 
 void GPB::gibbs(int burnin, int Ns)
 {
-	INFO("Start Gibbs sampling! [burnin: %d samples: %d]\n", burnin, Ns);
+	INFO("GPB: start Gibbs sampling! [burnin: %d samples: %d]\n", burnin, Ns);
 
 	mat EF(size(F), fill::zeros);
 	mat EB(size(B), fill::zeros);
@@ -34,7 +34,7 @@ void GPB::gibbs(int burnin, int Ns)
 				}
 			}
 			if ((iter-1) % ECHO_PER_ITERS == 0)
-				INFO("Likelihood after %d iters: %lf\n", iter-1, elbo);
+				INFO("GPB: likelihood after %d iters: %lf\n", iter-1, elbo);
 		}
 
         Bshp.fill(Bpshp);
@@ -68,7 +68,7 @@ void GPB::gibbs(int burnin, int Ns)
         sample_B(Bshp, Brte);
     }
 	F = EF; B = EB;
-	INFO("Gibbs sampling finished, final likelihood: %lf.\n", final_elbo);
+	INFO("GPB: gibbs sampling finished, final likelihood: %lf.\n", final_elbo);
 
 	char tmp[50];
 	sprintf(tmp, "%s/final", dir.c_str());
@@ -276,7 +276,7 @@ void GPB::init(int alpha)
 
 double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thresh) const
 {
-	INFO("Predict links in test set %s grid search.\n", (grid ? "with" : "without"));
+	INFO("GPB: predict links in test set %s grid search.\n", (grid ? "with" : "without"));
 
 	int TP, FN, TN, FP;
 
@@ -300,6 +300,13 @@ double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thres
 		double mean = accu(F.col(source).t() * B * F.col(dest));
 		double one_prob = 1 - exp(-mean);
 		pool[0].push_back(one_prob);
+	}
+
+	for (int i=0; i<2; i++)
+	{
+		for (auto prob : pool[i])
+			cout << prob << " ";
+		cout << endl;
 	}
 
 	double acc0 = 0.0;
@@ -338,7 +345,7 @@ double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thres
 			}
 		}
 		thresh = best_thresh;
-		INFO("Best accuracy %lf obtained when thresh is %lf.\n", best_acc, best_thresh);
+		INFO("GPB: best accuracy %lf obtained when thresh is %lf.\n", best_acc, best_thresh);
 	}
 	else
 	{
@@ -358,7 +365,7 @@ double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thres
 		acc1 = (double)TP/N1;
 		acc0 = (double)TN/N0;
 		best_acc = acc1 * test.ratio1 + acc0 * test.ratio0;
-		INFO("Accuracy %lf obtained when thresh is %lf.\n", best_acc, thresh);
+		INFO("GPB: accuracy %lf obtained when thresh is %lf.\n", best_acc, thresh);
 	}
 	return best_acc;
 }

@@ -16,9 +16,17 @@ using namespace std;
 template <class T>
 class Metrics {
 public:
-	// each line indicates a community
+	typedef enum {type1, type2} file_type;
+	static vector<set<T>> file_to_set(const string& filename, file_type type)
+	{
+		if (type == type1)
+			return file_to_set1(filename);
+		else
+			return file_to_set2(filename);
+	}
+	// each row is a community
 	static vector<set<T>> file_to_set1(const string& filename);
-	// each line is a node-community pair
+	// each row is a node-community pair
 	static vector<set<T>> file_to_set2(const string& filename);
 	static void set_to_file(const string& filename, const vector<set<T>>& community);
     static double NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2);

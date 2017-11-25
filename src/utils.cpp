@@ -2,7 +2,7 @@
 
 Logger::Level Logger::_LEVEL = DEBUG;
 
-const char * Logger::LevelMap[4] = {"DBG", "INF", "WRN ", "ERR"};
+const char * Logger::LevelMap[4] = {"DBG", "INF", "WRN", "ERR"};
 
 FILE* Logger::_logfd = NULL;
 

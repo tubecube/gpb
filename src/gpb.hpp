@@ -14,15 +14,15 @@ using namespace arma;
 class GPB {
 
 public:
-    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=true, int alpha=1):
-    	graph(g), K(k), Fpshp(Fpshp), Fprte(Fprte), Bpshp(Bpshp), Bprte(Bprte), save_dir(dir), sample_deep(sample_deep) 
+    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=true, double alpha=1.0, double beta=0.2):
+    	graph(g), K(k), Fpshp(Fpshp), Fprte(Fprte), Bpshp(Bpshp), Bprte(Bprte), save_dir(dir), sample_deep(sample_deep), alpha(alpha), beta(beta) 
 	{ 
 		Logger::setup_log_dir(save_dir);
 		Logger::setup_logfd(save_dir+"/log.txt");
 		INFO("GPB: %s graph with %d nodes %d edges.\n", (graph.is_directed() ? "directed" : "undirected"), graph.n_nodes(), graph.n_edges()); 
 		INFO("GPB: K(%d), alpha(%d), %s.\n", K, alpha, (sample_deep ? "sample deep" : "not sample deep"));
 		INFO("GPB: Fpshp(%lf), Fprte(%lf), Bpshp(%lf), Bprte(%lf).\n", K, alpha, Fpshp, Fprte, Bpshp, Bprte);
-		init(alpha);
+		init();
 	}
 
     void gibbs(int burnin, int Ns);
@@ -35,10 +35,8 @@ public:
 
 	vector<set<string>> get_community(const mat& component, bool overlap=false);
 
-	// if grid is true, do grid search
-	// return best accuracy and set thresh to best thresh
-	// if grid is false, return accuracy with thresh
-    double link_prediction(const Graph::Heldout& test, bool grid, double& thresh) const;
+	// return score, label pairs
+    vector<pair<float,int>> link_prediction(const Graph::Heldout& test) const;
 
 	static int ECHO_PER_ITERS;
 
@@ -47,7 +45,7 @@ public:
 	void set_dir(string dir) {this->save_dir = dir;}
 
 private:
-	const Graph& graph;
+	Graph& graph;
 
 	int N;
 
@@ -61,6 +59,10 @@ private:
 
     double Bprte;
 
+	double beta;
+
+	double alpha;
+
     mat Frte;
 
     mat Fshp;
@@ -73,17 +75,19 @@ private:
 
     mat B;
 
+	mat phi;
+
 	string save_dir;
 
 	bool sample_deep;
 
-    void init(int alpha=1);
+    void init();
 
     double compute_elbo(const mat& F, const mat& B) const;
 
 	//double heldout_likelihood(const Graph::Heldout& heldout) const;
 
-    mat sample_phi(int i, int j, bool sample_deep);
+    void sample_phi(int i, int j, bool sample_deep, bool accept_zero);
 
     void sample_F(const mat& Fshp, const mat& Frte);
 

@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include "roc.hpp"
 #include "utils.hpp"
 #include "graph.hpp"
 #include "metrics.hpp"
@@ -21,9 +22,9 @@ void usage()
     cout << "-ns ?: samples in Gibbs sampling(default: 50)\n";
     cout << "-u: indicate an undirected graph\n";
     cout << "-test: use a heldout set for link prediction\n";
-	cout << "-grid: use grid search for link prediction\n";
 	cout << "-dir ?: directory to save model(default: model_k)\n";
 	cout << "-alpha ?: factor for block matirx's diagnal shape priors(defalut: 1)\n";
+	cout << "-beta ?: factor for additional sample zeros(default: 0.2)\n";
 	cout << "-ndeep: not sample deep\n";
     cout << "-Fpshp ?: hyper parameters(default: 0.3)\n";
     cout << "-Fprte ?: hyper parameters(default: 1.0)\n";
@@ -31,7 +32,9 @@ void usage()
     cout << "-Bprte ?: hyper parameters(default: 1.0)\n";
 }
 
+
 int main(int argc, char* argv[]) {
+	Logger::_LEVEL = Logger::INFO;
     if (argc <= 1) {
         usage();
 		exit(1);
@@ -43,21 +46,19 @@ int main(int argc, char* argv[]) {
 	// default settings
     bool directed = true;
     bool heldout = false;
-	bool Gibbs = true;
 	bool sample_deep = true;
-	bool grid = false;
 	string ground_truth="";
 	Metrics<string>::file_type type = Metrics<string>::type1;
 	int K = 10;
     int Ns = 50;
     int burnin = 50;
-	int Alpha = 1;
+	double alpha = 1.0;
+	double beta = 0.2;
     double Fpshp = 0.3;
     double Fprte = 1.0;
     double Bpshp = 0.3;
     double Bprte = 1.0;
     string save_dir="";
-	Graph::Heldout* hp = NULL;
 
     for (int i=2; i<argc; ++i)
     {
@@ -80,9 +81,6 @@ int main(int argc, char* argv[]) {
 		// use a heldout set
         else if (strcmp(argv[i], "-test")==0)
             heldout = true;
-
-		else if (strcmp(argv[i], "-grid")==0)
-			grid = true;
 
 		else if (strcmp(argv[i], "-ndeep")==0)
 			sample_deep = false;
@@ -108,7 +106,10 @@ int main(int argc, char* argv[]) {
 			type = Metrics<string>::type2;
 
 		else if (strcmp(argv[i], "-alpha")==0)
-			Alpha = atoi(argv[++i]);
+			alpha = atof(argv[++i]);
+
+		else if (strcmp(argv[i], "-beta")==0)
+			beta = atof(argv[++i]);
 
 		else {
 			usage();
@@ -117,27 +118,26 @@ int main(int argc, char* argv[]) {
     }
 
 	if (save_dir.size() == 0)
-		save_dir = "gpb_" + to_string(K);
+		save_dir = "gpb_K" + to_string(K);
 
 	Graph graph = Graph(input, directed);
 
 	if (heldout)
 	{
-		int n0[1] = {100};
-		int n1[1] = {100};
-		int *sizes[2] = {n0, n1};
-		hp = graph.create_heldouts(sizes, 1);
+		int sign = graph.push_heldout(100, 1000);
+		if (sign != 0)
+			exit(sign);
 	}
 
-    GPB gpb(graph, K, Fpshp, Fprte, Bpshp, Bprte, save_dir.c_str(), sample_deep, Alpha);
+    GPB gpb(graph, K, Fpshp, Fprte, Bpshp, Bprte, save_dir.c_str(), sample_deep, alpha, beta);
 
-    if (Gibbs)	gpb.gibbs(burnin, Ns);
-    // else	gpb->vi(vimax);
+    gpb.gibbs(burnin, Ns);
 
 	if (heldout)
 	{
-		double thresh = hp[0].ratio1;
-		gpb.link_prediction(hp[0], grid, thresh);
+		vector<pair<float,int>> data = gpb.link_prediction(graph.heldouts.back());
+		ROC roc(data);
+		INFO("AUC: %f\n", roc.getAreaUnderCurve());
 	}
 
 	vector<set<string>> community = gpb.get_community(gpb.link_component());

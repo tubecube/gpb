@@ -89,32 +89,38 @@ int Graph::check_id(const string& str)
     return str2id[str];
 }
 
-Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
+int Graph::pop_heldout()
 {
-	INFO("Graph: start assigning %d heldout sets!\n", num);
-	long total_links = 0, total_nlinks = 0;
+	if (heldouts.size() == 0)
+		return -1;
+	heldouts.pop_back();
+	return 0;
+}
 
-	for (int i = 0; i < num; i++)
+int Graph::push_heldout(int N0, int N1)
+{
+	DEBUG("Graph: creating heldout with %d links and %d nonlinks.\n", N1, N0);
+	/*check*/
+	unsigned total_nonlinks = N0;
+	unsigned total_links = N1;
+	for (const Heldout& heldout : heldouts)
 	{
-		total_nlinks += sizes[0][i];
-		total_links += sizes[1][i];
+		total_nonlinks += heldout.pairs[0].size();
+		total_links += heldout.pairs[1].size();
+	}
+	if (total_nonlinks >= Nzeros/2 || total_links >= Nones/2)
+	{
+		ERROR("Graph: too many links or nonlinks in heldout sets!\n");
+		return -1;
 	}
 
-	// check
-	int ratio = 10;
-	if (total_links >= Nones/ratio || total_nlinks >= Nzeros/ratio)
-	{
-		ERROR("Graph: too many links or nonlinks to assign!\n");
-		return NULL;
-	}
+	heldouts.push_back(Heldout());
+	Heldout& current = heldouts.back(); 
 
-	Heldout *heldouts = new Heldout[num];
-	
-	Heldout::pair_set pools[2];
-
-	/* assigning non links */
     srand(time(0));
-    while (total_nlinks-- > 0)
+
+	/* assigning nonlinks */
+    while (N0-- > 0)
 	{
         int source, dest;
         do
@@ -124,54 +130,46 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 			if (!directed && source > dest)
 				swap(source, dest);
         } while (source == dest
-				|| pools[0].count(make_pair(source,dest)) >= 1 
-				|| network(source, dest) != 0);
+				|| network(source, dest) != 0
+				|| check_in_heldouts(source, dest, false));
 
-		pools[0].insert(make_pair(source,dest));
+		current.pairs[0].insert(make_pair(source,dest));
     }
 
-	DEBUG("Graph: finished assigning nonlinks.\n");
-
-	set<unsigned> eindexes;
-	while (eindexes.size() < total_links)
-		eindexes.insert(rand() % Nones);
-
-	auto nit = network.begin();
-	unsigned pre = 0;
-	for (set<unsigned>::iterator it=eindexes.begin(); it!=eindexes.end(); it++)
+	/* assigning links */
+	int left = N1 - current.pairs[1].size();
+	while (left)
 	{
-		unsigned adv = *it-pre;
-		pre = *it;
-		while (adv--)
-			++nit;
-		int i = nit.row(), j = nit.col();
-		pools[1].insert(make_pair(i, j));
-	}
-	for (const pair<int,int>& pr : pools[1])
-	{
-		network(pr.first, pr.second) = 0;
-	}
+		set<unsigned> eindexes;
+		while (eindexes.size() < left)
+			eindexes.insert(rand() % Nones);
 
-	DEBUG("Graph: finished assigning links.\n");
-
-	for (int i=0; i<2; i++)
-	{
-		int bin = 0;
-		for (const pair<int,int>& pr : pools[i])
+		auto nit = network.begin();
+		unsigned pre = 0;
+		for (set<unsigned>::iterator it=eindexes.begin(); it!=eindexes.end(); it++)
 		{
-			if (heldouts[bin].pairs[i].size() == sizes[i][bin])
-				bin++;
-			heldouts[bin].pairs[i].insert(pr);
+			unsigned adv = *it-pre;
+			pre = *it;
+			while (adv--)
+				++nit;
+			int source = nit.row();
+			int dest = nit.col();
+			if (!check_in_heldouts(source, dest, true))
+				current.pairs[1].insert(make_pair(source, dest));
 		}
+		left = N1 - current.pairs[1].size();
 	}
+	return 0;
+}
 
-	for (int bin = 0; bin < num; bin++)
-	{
-		heldouts[bin].ratio1 = ratio1;
-		heldouts[bin].ratio0 = ratio0;
-	}
-
-	INFO("Graph: finished assigning %d heldout sets!\n", num);
-
-    return heldouts;
+bool Graph::check_in_heldouts(int source, int dest, bool link) const
+{
+	int idx = link ? 1 : 0;
+	if (!directed && source > dest)
+		swap(source, dest);
+	pair<int,int> pr = make_pair(source, dest);
+	for (const Heldout& heldout : heldouts)
+		if (heldout.pairs[idx].count(pr) >= 1)
+			return true;
+	return false;
 }

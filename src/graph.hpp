@@ -48,23 +48,22 @@ public:
 	{
 		// pair unhashable
 		typedef set<pair<int,int>> pair_set;
-		Heldout():ones(pairs[1]),zeros(pairs[0]) {}
 		pair_set pairs[2];
-		pair_set &ones;
-		pair_set &zeros;
-		double ratio0;
-		double ratio1;
 	};
 
-	/* create N heldout sets: */
-	/* sizes[0] is # of nonlinks in each heldout set. */
-	/* sizes[1] is # of links in each heldout set. */
-	Heldout* create_heldouts(int *sizes[2], int N);
+	vector<Heldout> heldouts;
 
-private:
+	int push_heldout(int N0, int N1);
+
+	int pop_heldout();
+
+	bool check_in_heldouts(int source, int dest, bool link) const;
+
 	int N;
 	unsigned long Nones;
 	unsigned long Nzeros;
+
+private:
 	double ratio0;
 	double ratio1;
 	bool directed;

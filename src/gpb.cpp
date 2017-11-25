@@ -57,7 +57,7 @@ void GPB::gibbs(int burnin, int Ns)
         Brte += sum(F,1)*sum(F,1).t() - F*F.t();
         sample_B(Bshp, Brte);
     }
-
+	F = EF; B = EB;
 	INFO("Gibbs sampling finished, final likelihood: %lf.\n", final_elbo);
 
 	char tmp[50];
@@ -101,9 +101,15 @@ mat GPB::sample_phi(int i, int j, bool sample_deep)
 			auto iter = std::lower_bound(stairs.begin(), stairs.end(), ud(generator));
 			factors[iter-stairs.begin()] += 1;
 		}
+		if (!graph.is_directed())
+			factors = factors + factors.t();
 	}
 	else
+	{
 		factors *= num;
+		if (!graph.is_directed())
+			factors *= 2;
+	}
 
     return factors;
 }
@@ -112,6 +118,7 @@ void GPB::sample_F(const mat& Fshp, const mat& Frte)
 {
 	int rows = Fshp.n_rows;
 	int cols = Fshp.n_cols;
+	F.zeros();
     for (int n=0; n<cols; ++n)
 	{
         for (int k=0; k<rows; ++k)
@@ -126,14 +133,31 @@ void GPB::sample_B(const mat& Bshp, const mat& Brte)
 {
 	int rows = Bshp.n_rows;
 	int cols = Bshp.n_cols;
-    for (int k1=0; k1<rows; ++k1)
+	B.zeros();
+	if (graph.is_directed())
 	{
-        for (int k2=0; k2<cols; ++k2)
+		for (int k1=0; k1<rows; ++k1)
 		{
-            gamma_distribution<double> gd(Bshp(k1,k2), 1.0/Brte(k1,k2));
-            B(k1,k2) = gd(generator);
-        }
-    }
+			for (int k2=0; k2<cols; ++k2)
+			{
+				gamma_distribution<double> gd(Bshp(k1,k2), 1.0/Brte(k1,k2));
+				B(k1,k2) = gd(generator);
+			}
+		}
+	}
+	else
+	{
+		for (int k1=0; k1<rows; ++k1)
+		{
+			for (int k2=k1; k2<cols; ++k2)
+			{
+				gamma_distribution<double> gd(Bshp(k1,k2), 1.0/Brte(k1,k2));
+				B(k1,k2) = gd(generator);
+			}
+		}
+		B = B + B.t();
+		B.diag() /= 2;
+	}
 }
 
 /*
@@ -244,48 +268,110 @@ sp_mat GPB::estimate_phi(int i, int j) {
 void GPB::init(int alpha)
 {
     set_seed(generator);
-
     arma_rng::set_seed_random();
-
 	N = graph.n_nodes();
-
 	F.set_size(K,N);
     Fshp = randu<mat>(K,N) * Fpshp;
     Frte = randu<mat>(K,N) * Fprte;
     sample_F(Fshp, Frte);
-    ElnF.set_size(K,N);
 
 	B.set_size(K,K);
     Bshp = randu<mat>(K,K) % ((alpha-1)*eye<mat>(K,K) + ones<mat>(K,K) * Bpshp);
     Brte = randu<mat>(K,K) % (ones<mat>(K,K) * Bprte);
     sample_B(Bshp, Brte);
-    ElnB.set_size(K,K);
+	if (!graph.is_directed())
+		B = (B + B.t()) / 2;
     // compute_exp_ln();
 }
 
-/*
-double GPB::validation_likelihood() const {
-    double d1 = .0;
-    double d2 = .0;
-    size_t size1 = 0;
-    size_t size2 = 0;
-    for (auto itr = heldout.cbegin(); itr!=heldout.cend(); ++itr) {
-        int i = itr->first.first;
-        int j = itr->first.second;
+double GPB::link_prediction(const Graph::Heldout& test, bool grid, double& thresh) const
+{
+	INFO("Predict links in test set %s grid search.\n", (grid ? "with" : "without"));
 
-        double mean = accu((EF.col(i)).t() * EB * EF.col(j));
+	int TP, FN, TN, FP;
 
-        if (itr->second) {
-            d1 += log(mean) - mean;
-            size1++;
-        } else {
-            d2 -= mean;
-            size2++;
-        }
-    }
-    return (d1+d2)/(size1+size2);
+	int N0 = test.zeros.size();
+	int N1 = test.ones.size();
+
+	vector<double> pool[2];
+
+	for (const pair<int,int>& pair : test.ones)
+	{
+		int source = pair.first;
+		int dest = pair.second;
+		double mean = accu(F.col(source).t() * B * F.col(dest));
+		double one_prob = 1 - exp(-mean);
+		pool[1].push_back(one_prob);
+	}
+	for (const pair<int,int>& pair : test.zeros)
+	{
+		int source = pair.first;
+		int dest = pair.second;
+		double mean = accu(F.col(source).t() * B * F.col(dest));
+		double one_prob = 1 - exp(-mean);
+		pool[0].push_back(one_prob);
+	}
+
+	double acc0 = 0.0;
+	double acc1 = 0.0;
+	double acc = 0.0;
+	double best_acc = 0.0;
+	double best_thresh = 0.0;
+
+	if (grid)
+	{
+		double step = 0.01;
+		for (double t = 0.01; t <= 0.99; t += step)
+		{
+			TP = FN = TN = FP = 0;
+			for (int i = 0; i < 2; i++)
+				for (double prob : pool[i])
+				{
+					if (i == 0 && prob < t)
+						TN++;
+					else if (i == 0 && prob >= t)
+						FP++;
+					else if (i == 1 && prob > t)
+						TP++;
+					else
+						FN++;
+				}
+
+			acc1 = (double)TP/N1;
+			acc0 = (double)TN/N0;
+			acc = acc1 * test.ratio1 + acc0 * test.ratio0;
+			// cout << t << ": " << acc1 << " " << acc0 << endl;
+			if (acc > best_acc)
+			{
+				best_acc = acc;
+				best_thresh = t;
+			}
+		}
+		thresh = best_thresh;
+		INFO("Best accuracy %lf obtained when thresh is %lf.\n", best_acc, best_thresh);
+	}
+	else
+	{
+		TP = FN = TN = FP = 0;
+		for (int i = 0; i < 2; i++)
+			for (double prob : pool[i])
+			{
+				if (i == 0 && prob < thresh)
+					TN++;
+				else if (i == 0 && prob >= thresh)
+					FP++;
+				else if (i == 1 && prob > thresh)
+					TP++;
+				else
+					FN++;
+			}
+		acc1 = (double)TP/N1;
+		acc0 = (double)TN/N0;
+		best_acc = acc1 * test.ratio1 + acc0 * test.ratio0;
+		INFO("Accuracy %lf obtained when thresh is %lf.\n", best_acc, thresh);
+	}
+	return best_acc;
 }
-*/
 
 double GPB::compute_elbo(const mat& F, const mat& B) const
 {

@@ -15,16 +15,17 @@ void usage()
 	cout << "\n";
     cout << "OPTIONAL parameters:\n";
     cout << "-u: indicate an undirected graph\n";
-    cout << "-h: use a heldout set\n";
-    cout << "-v: use variational inference\n";
-	cout << "-d: sample deep\n";
+    cout << "-test: use a heldout set for link prediction\n";
+	cout << "-grid: use grid search for link prediction\n";
+    cout << "-vi: use variational inference\n";
+	cout << "-deep: sample deep\n";
 	cout << "-k ?: input dimensions(default: 10)\n";
-    cout << "-m ?: max iterations in vi(default: 100)\n";
-    cout << "-b ?: burnin in Gibbs sampling(default: 50)\n";
-    cout << "-n ?: samples in Gibbs sampling(default: 50)\n";
-	cout << "-s ?: directory to save model(default: model_k)\n";
-	cout << "-g ?: ground truth filename(default: None)\n";
-	cout << "-a ?: factor for block matirx's diagnal shape priors(defalut: 1)\n";
+    cout << "-vimax ?: max iterations in vi(default: 100)\n";
+    cout << "-burn ?: Gibbs sampling burnin(default: 50)\n";
+    cout << "-ns ?: samples in Gibbs sampling(default: 50)\n";
+	cout << "-dir ?: directory to save model(default: model_k)\n";
+	cout << "-ground ?: ground truth filename(default: None)\n";
+	cout << "-alpha ?: factor for block matirx's diagnal shape priors(defalut: 1)\n";
     cout << "-Fpshp ?: hyper parameters(default: 0.3)\n";
     cout << "-Fprte ?: hyper parameters(default: 1.0)\n";
     cout << "-Bpshp ?: hyper parameters(default: 0.3)\n";
@@ -45,6 +46,7 @@ int main(int argc, char* argv[]) {
     bool heldout = false;
 	bool Gibbs = true;
 	bool sample_deep = false;
+	bool grid = false;
 	int K = 10;
     int vimax = 100;
     int Ns = 50;
@@ -56,6 +58,7 @@ int main(int argc, char* argv[]) {
     double Bprte = 1.0;
     string save_dir="";
 	string ground_truth="";
+	Graph::Heldout* hp = NULL;
 
     for (int i=2; i<argc; ++i)
     {
@@ -64,19 +67,19 @@ int main(int argc, char* argv[]) {
 			K = atoi(argv[++i]);
 
 		// use variational inference instead of Gibbs sampling
-		else if (strcmp(argv[i], "-v")==0)
+		else if (strcmp(argv[i], "-vi")==0)
 			Gibbs = false;
 
 		// variational inference max iterations
-		else if (strcmp(argv[i], "-m")==0)
+		else if (strcmp(argv[i], "-vimax")==0)
             vimax = atoi(argv[++i]);
 
 		// burnin in Gibbs sampling
-        else if (strcmp(argv[i], "-b")==0)
+        else if (strcmp(argv[i], "-burn")==0)
             burnin = atoi(argv[++i]);
 
 		// #samples in Gibbs sampling
-        else if (strcmp(argv[i], "-n")==0)
+        else if (strcmp(argv[i], "-ns")==0)
             Ns = atoi(argv[++i]);
 
 		// indicate an undirected graph
@@ -84,10 +87,13 @@ int main(int argc, char* argv[]) {
             directed = false;
 
 		// use a heldout set
-        else if (strcmp(argv[i], "-h")==0)
+        else if (strcmp(argv[i], "-test")==0)
             heldout = true;
 
-		else if (strcmp(argv[i], "-d")==0)
+		else if (strcmp(argv[i], "-grid")==0)
+			grid = true;
+
+		else if (strcmp(argv[i], "-deep")==0)
 			sample_deep = true;
 
 		// hyperparameters
@@ -101,13 +107,13 @@ int main(int argc, char* argv[]) {
             Bprte = atof(argv[++i]);
 
 		// saved directory
-        else if (strcmp(argv[i], "-s")==0)
+        else if (strcmp(argv[i], "-dir")==0)
             save_dir = argv[++i];
 
-		else if (strcmp(argv[i], "-g")==0)
+		else if (strcmp(argv[i], "-ground")==0)
 			ground_truth = argv[++i];
 
-		else if (strcmp(argv[i], "-a")==0)
+		else if (strcmp(argv[i], "-alpha")==0)
 			Alpha = atoi(argv[++i]);
 
 		else {
@@ -122,10 +128,24 @@ int main(int argc, char* argv[]) {
 
 	Graph graph = Graph(input, directed);
 
+	if (heldout)
+	{
+		int n0[1] = {100};
+		int n1[1] = {100};
+		int *sizes[2] = {n0, n1};
+		hp = graph.create_heldouts(sizes, 1);
+	}
+
     GPB gpb(graph, K, Fpshp, Fprte, Bpshp, Bprte, save_dir.c_str(), sample_deep, Alpha);
 
     if (Gibbs)	gpb.gibbs(burnin, Ns);
     // else	gpb->vi(vimax);
+
+	if (heldout)
+	{
+		double thresh = hp[0].ratio1;
+		gpb.link_prediction(hp[0], grid, thresh);
+	}
 
 	vector<set<string>> community = gpb.get_community(gpb.link_component());
 	Metrics<string>::set_to_file(save_dir+"/community.dat", community);

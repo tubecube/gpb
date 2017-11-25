@@ -151,7 +151,7 @@ double Metrics<T>::NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
     normalizer /= 2;
 
     double NMI = MI/normalizer;
-    INFO("NMI: %lf.\n",NMI);
+    INFO("NMI: %lf\n",NMI);
     return NMI;
 }
 
@@ -178,9 +178,9 @@ double Metrics<T>::ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
     double NMIMAX = 0.5 * ( (HX-HXgivenY)/max(HX, HY) + (HY-HYgivenX)/max(HX, HY) );
     double NMISUM = 0.5 * ( (HX-HXgivenY)/((HX+HY)/2) + (HY-HYgivenX)/((HX+HY)/2) );
 
-    INFO("NMI_lfk: %lf.\n", NMILFK);
-    INFO("NMI_max: %lf.\n", NMIMAX);
-    INFO("NMI_sum: %lf.\n", NMISUM);
+    INFO("NMI_lfk: %lf\n", NMILFK);
+    INFO("NMI_max: %lf\n", NMIMAX);
+    INFO("NMI_sum: %lf\n", NMISUM);
 
     return NMILFK;
 }
@@ -257,7 +257,7 @@ template <class T>
 double Metrics<T>::F1(const vector< set<T> >& g1, const vector< set<T> >& g2)
 {
     double score = 0.5 * (F1_one_turn(g1, g2) + F1_one_turn(g2, g1));
-    INFO("F1: %lf.\n", score);
+    INFO("F1: %lf\n", score);
     return score;
 }
 

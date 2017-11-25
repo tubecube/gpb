@@ -35,6 +35,11 @@ public:
 
 	vector<set<string>> get_community(const mat& component, bool overlap=false);
 
+	// if grid is true, do grid search
+	// return best accuracy and set thresh to best thresh
+	// if grid is false, return accuracy with thresh
+    double link_prediction(const Graph::Heldout& test, bool grid, double& thresh) const;
+
 	static int ECHO_PER_ITERS;
 
 	static int SAVE_PER_ITERS;
@@ -82,7 +87,8 @@ private:
 
     double compute_elbo(const mat& F, const mat& B) const;
 
-    // double validation_likelihood() const;
+
+	//double heldout_likelihood(const Graph::Heldout& heldout) const;
 
     // void compute_exp_ln();
 

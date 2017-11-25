@@ -54,26 +54,28 @@ int Graph::read_from_file(const string& filename, bool directed)
 	edges.resize(N);
 
 	Nones = 0;
-    for (int i=0; i<N; ++i) {
+    for (int i=0; i<N; ++i)
 		Nones += edges[i].size();
-	}
 
-	Nzeros = (directed ? (long)N*(N-1) : (long)N*(N-1)/2) - Nones;
+	long total_edges = (directed ? (long)N*(N-1) : (long)N*(N-1)/2);
+
+	Nzeros = total_edges - Nones;
+
+	ratio0 = (double)Nzeros / total_edges;
+	ratio1 = (double)Nones / total_edges;
 
 	id2str.resize(N);
 	for (auto& m: str2id)
 		id2str[m.second] = m.first;
 
-	umat locations(2, Nones);
+	network.set_size(N, N);
+
 	for (int i=0, n=0; i<N; ++i)
 		for (auto iter=edges[i].begin(); iter!=edges[i].end(); ++iter)
 		{
-			uvec e = {(unsigned)i, (unsigned)(*iter)};
-			locations.col(n++) = e;
+			int j = *iter;
+			network(i, j) = 1;
 		}
-	Col<unsigned> values(Nones, fill::ones);
-
-	network = SpMat<unsigned>(locations, values);
 
     INFO("Reading graph finished! [nodes:%d edges:%u]\n", N, Nones);
 
@@ -110,7 +112,7 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 	Heldout::pair_set pools[2];
 
     srand(time(0));
-    while(total_nlinks-- > 0)
+    while (total_nlinks-- > 0)
 	{
         int source, dest;
         do
@@ -135,13 +137,21 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 
 		auto nit = network.begin();
 		int pre = 0;
+		vector<pair<int,int>> trash;
 		for (auto it=tmp.begin(); it!=tmp.end(); it++)
 		{
 			int adv = *it-pre;
 			pre = *it;
 			while (adv--)
 				++nit;
-			pools[1].insert(make_pair(nit.row(), nit.col()));
+			int i = nit.row(), j = nit.col();
+			pools[1].insert(make_pair(i, j));
+			// delete from network
+			trash.push_back(make_pair(i, j));
+		}
+		for (auto& pair : trash)
+		{
+			network(pair.first, pair.second) = 0;
 		}
 	}
 
@@ -157,6 +167,12 @@ Graph::Heldout* Graph::create_heldouts(int* sizes[2], int num)
 				bin++;
 			heldouts[bin].pairs[i].insert(s);
 		}
+	}
+
+	for (int bin = 0; bin < num; bin++)
+	{
+		heldouts[bin].ratio1 = ratio1;
+		heldouts[bin].ratio0 = ratio0;
 	}
 	INFO("Finished assigning %d heldout sets!\n", num);
 

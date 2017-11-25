@@ -49,8 +49,10 @@ public:
 		typedef set<pair<int,int>> pair_set;
 		Heldout():ones(pairs[1]),zeros(pairs[0]) {}
 		pair_set pairs[2];
-		pair_set &ones; 
-		pair_set &zeros;;
+		pair_set &ones;
+		pair_set &zeros;
+		double ratio0;
+		double ratio1;
 	};
 
 	/* create N heldout sets: */
@@ -58,22 +60,12 @@ public:
 	/* sizes[1] is # of links in each heldout set. */
 	Heldout* create_heldouts(int *sizes[2], int N);
 
-    // vector<set<int>> ground_truth;
-
-    // set<int> ground_set;
-
-    // map<pair<int,int>, bool>& create_heldout(size_t size1, size_t size2);
-
-    // void cut(vector<set<int>>&);
-
-    // void save_community(vector<set<int>>&);
-
-    // void create_ground_truth(const string&);
-
 private:
 	int N;
 	unsigned long Nones;
 	unsigned long Nzeros;
+	double ratio0;
+	double ratio1;
 	bool directed;
 	vector<set<int>> edges;
 	unordered_map<string, int> str2id;

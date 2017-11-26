@@ -14,14 +14,14 @@ using namespace arma;
 class GPB {
 
 public:
-    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=true, double alpha=1.0, double beta=0.2):
+    GPB(Graph& g, int k, double Fpshp=0.3, double Fprte=1.0, double Bpshp=0.3, double Bprte=1.0, const char* dir=".", bool sample_deep=true, double alpha=1.0, double beta=0.0):
     	graph(g), K(k), Fpshp(Fpshp), Fprte(Fprte), Bpshp(Bpshp), Bprte(Bprte), save_dir(dir), sample_deep(sample_deep), alpha(alpha), beta(beta) 
 	{ 
 		Logger::setup_log_dir(save_dir);
 		Logger::setup_logfd(save_dir+"/log.txt");
-		INFO("GPB: %s graph with %d nodes %d edges.\n", (graph.is_directed() ? "directed" : "undirected"), graph.n_nodes(), graph.n_edges()); 
-		INFO("GPB: K(%d), alpha(%d), %s.\n", K, alpha, (sample_deep ? "sample deep" : "not sample deep"));
-		INFO("GPB: Fpshp(%lf), Fprte(%lf), Bpshp(%lf), Bprte(%lf).\n", K, alpha, Fpshp, Fprte, Bpshp, Bprte);
+		INFO("GPB: %s graph with %d nodes %d edges\n", (graph.is_directed() ? "directed" : "undirected"), graph.n_nodes(), graph.n_edges()); 
+		INFO("GPB: K=%d, alpha=%.3lf, beta=%.3lf, %s\n", K, alpha, beta, (sample_deep ? "sample multinomial" : "skip multinomial sampling"));
+		INFO("GPB: Fpshp=%.3lf, Fprte=%.3lf, Bpshp=%.3lf, Bprte=%.3lf\n", Fpshp, Fprte, Bpshp, Bprte);
 		init();
 	}
 

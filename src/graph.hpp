@@ -55,6 +55,17 @@ public:
 
 	int push_heldout(int N0, int N1);
 
+	int push_heldout_with_percentage(double pctg)
+	{
+		if (pctg < 1 && pctg > 0)
+			return push_heldout(int(Nzeros*pctg), int(Nones*pctg));
+		else
+		{
+			ERROR("Heldout: not a valid percentage!\n");
+			return -1;
+		}
+	}
+
 	int pop_heldout();
 
 	bool check_in_heldouts(int source, int dest, bool link) const;

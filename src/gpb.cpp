@@ -1,12 +1,12 @@
 #include "gpb.hpp"
 
-int GPB::ECHO_PER_ITERS = 2;
+int GPB::ECHO_PER_ITERS = 5;
 
 int GPB::SAVE_PER_ITERS = 10;
 
 void GPB::gibbs(int burnin, int Ns)
 {
-	INFO("GPB: start Gibbs sampling! [burnin: %d samples: %d]\n", burnin, Ns);
+	INFO("GPB: start Gibbs sampling burnin: %d samples: %d\n", burnin, Ns);
 
 	mat EF(size(F), fill::zeros);
 	mat EB(size(B), fill::zeros);
@@ -34,7 +34,7 @@ void GPB::gibbs(int burnin, int Ns)
 				}
 			}
 			if ((iter-1) % ECHO_PER_ITERS == 0)
-				DEBUG("GPB: likelihood after %d iters: %lf\n", iter-1, elbo);
+				INFO("GPB: likelihood after %d iters: %lf\n", iter-1, elbo);
 		}
 
         Bshp.fill(Bpshp);
@@ -58,9 +58,10 @@ void GPB::gibbs(int burnin, int Ns)
 				Bshp += (phi+phi.t()) / 2;
 		}
 		
-		// additional sample for zeros
-		graph.push_heldout(beta*graph.Nzeros, 0);
-		// additional sample in heldouts
+		// additional samples for zeros
+		if (beta != 0.0)
+			graph.push_heldout(beta*graph.Nzeros, 0);
+		// additional samples in heldouts
 		for (const Graph::Heldout& heldout : graph.heldouts)
 		{
 			for (int i = 0; i < 2; i++)
@@ -83,7 +84,8 @@ void GPB::gibbs(int burnin, int Ns)
 				}
 			}
 		}
-		graph.pop_heldout();
+		if (beta != 0.0)
+			graph.pop_heldout();
 
 
 		if (directed)
@@ -99,7 +101,7 @@ void GPB::gibbs(int burnin, int Ns)
         sample_B(Bshp, Brte);
     }
 	F = EF; B = EB;
-	INFO("GPB: gibbs sampling finished, final likelihood: %lf\n", final_elbo);
+	INFO("GPB: final likelihood after %d samples: %lf\n", Ns, final_elbo);
 
 	char tmp[50];
 	sprintf(tmp, "%s/final", save_dir.c_str());

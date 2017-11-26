@@ -5,16 +5,16 @@ int Graph::read_from_file(const string& filename, bool directed)
     ifstream stream(filename);
     if (stream.is_open() == false)
 	{
-       ERROR("Graph: fail opening file! [%s]\n", filename.c_str());
+       ERROR("Graph: fail opening file %s\n", filename.c_str());
 	   return 2;
 	}
 
     this->directed = directed;
 
     if (directed)
-       INFO("Graph: reading from directed graph! [%s]\n", filename.c_str());
+       INFO("Graph: reading from directed graph %s\n", filename.c_str());
     else
-       INFO("Graph: reading from undirected graph! [%s]\n", filename.c_str());
+       INFO("Graph: reading from undirected graph %s\n", filename.c_str());
 
 	str2id.clear();
 	id2str.clear();
@@ -46,7 +46,7 @@ int Graph::read_from_file(const string& filename, bool directed)
 		/*add edge*/
 
 		if (++m % 100000 == 0)
-			DEBUG("Graph: already %u lines read.\n", m);
+			DEBUG("Graph: already %u lines read\n", m);
     }
     stream.close();
 
@@ -77,7 +77,7 @@ int Graph::read_from_file(const string& filename, bool directed)
 			network(i, j) = 1;
 		}
 
-    INFO("Graph: reading graph finished! [nodes:%d edges:%u]\n", N, Nones);
+    INFO("Graph: reading graph finished nodes:%d edges:%u\n", N, Nones);
 
 	return 0;
 }
@@ -91,15 +91,16 @@ int Graph::check_id(const string& str)
 
 int Graph::pop_heldout()
 {
-	if (heldouts.size() == 0)
-		return -1;
-	heldouts.pop_back();
-	return 0;
+	if (!heldouts.empty())
+	{
+		heldouts.pop_back();
+		return 0;
+	} return -1;
 }
 
 int Graph::push_heldout(int N0, int N1)
 {
-	DEBUG("Graph: creating heldout with %d links and %d nonlinks.\n", N1, N0);
+	DEBUG("Graph: creating heldout with %d links and %d nonlinks\n", N1, N0);
 	/*check*/
 	unsigned total_nonlinks = N0;
 	unsigned total_links = N1;
@@ -110,7 +111,7 @@ int Graph::push_heldout(int N0, int N1)
 	}
 	if (total_nonlinks >= Nzeros/2 || total_links >= Nones/2)
 	{
-		ERROR("Graph: too many links or nonlinks in heldout sets!\n");
+		ERROR("Graph: links or nonlinks exceed half, not allowed!\n");
 		return -1;
 	}
 
@@ -129,11 +130,8 @@ int Graph::push_heldout(int N0, int N1)
         	dest = rand()%N;
 			if (!directed && source > dest)
 				swap(source, dest);
-        } while (source == dest
-				|| network(source, dest) != 0
-				|| check_in_heldouts(source, dest, false));
-
-		current.pairs[0].insert(make_pair(source,dest));
+        } while (source == dest || network(source, dest) != 0 || check_in_heldouts(source, dest, false));
+		current.pairs[0].insert(make_pair(source, dest));
     }
 
 	/* assigning links */

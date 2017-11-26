@@ -15,21 +15,21 @@ void usage()
     cout << "USAGE: gpb INPUT_FILE\n";
 	cout << "\n";
     cout << "OPTIONAL parameters:\n";
-	cout << "-k ?: feature vector dimensions(default: 10)\n";
-	cout << "-ground ?: ground truth filename(default: None)\n";
-	cout << "-type2: ground truth file with type2\n";
-    cout << "-burn ?: Gibbs sampling burnin(default: 50)\n";
-    cout << "-ns ?: samples in Gibbs sampling(default: 50)\n";
-    cout << "-u: indicate an undirected graph\n";
-    cout << "-test: use a heldout set for link prediction\n";
-	cout << "-dir ?: directory to save model(default: model_k)\n";
-	cout << "-alpha ?: factor for block matirx's diagnal shape priors(defalut: 1)\n";
-	cout << "-beta ?: factor for additional sample zeros(default: 0.2)\n";
-	cout << "-ndeep: not sample deep\n";
-    cout << "-Fpshp ?: hyper parameters(default: 0.3)\n";
-    cout << "-Fprte ?: hyper parameters(default: 1.0)\n";
-    cout << "-Bpshp ?: hyper parameters(default: 0.3)\n";
-    cout << "-Bprte ?: hyper parameters(default: 1.0)\n";
+    cout << "-u: input graph is undirected\n";
+	cout << "-k: set feature vector dimension(default: 10)\n";
+	cout << "-comm: set comm filename\n";
+	cout << "-type2: each line is a node-comm pair(default: each line is a comm)\n";
+    cout << "-burn: set gibbs sampling burnin(default: 50)\n";
+    cout << "-ns: set num of samples(default: 50)\n";
+    cout << "-lp: do link prediction\n";
+	cout << "-dir: set directory to save\n";
+	cout << "-alpha: set factor for homophily defalut: 1.0\n";
+	cout << "-beta: set additional samples per iter default: 0.0\n";
+	cout << "-smul: skip multinomial sampling\n";
+    cout << "-Fpshp: set hyper parameters default: 0.3\n";
+    cout << "-Fprte: set hyper parameters default: 1.0\n";
+    cout << "-Bpshp: set hyper parameters default: 0.3\n";
+    cout << "-Bprte: set hyper parameters default: 1.0\n";
 }
 
 
@@ -45,15 +45,15 @@ int main(int argc, char* argv[]) {
 
 	// default settings
     bool directed = true;
-    bool heldout = false;
 	bool sample_deep = true;
+	bool lp = false;
 	string ground_truth="";
 	Metrics<string>::file_type type = Metrics<string>::type1;
 	int K = 10;
     int Ns = 50;
     int burnin = 50;
 	double alpha = 1.0;
-	double beta = 0.2;
+	double beta = 0.0;
     double Fpshp = 0.3;
     double Fprte = 1.0;
     double Bpshp = 0.3;
@@ -78,11 +78,11 @@ int main(int argc, char* argv[]) {
         else if (strcmp(argv[i], "-u")==0)
             directed = false;
 
-		// use a heldout set
-        else if (strcmp(argv[i], "-test")==0)
-            heldout = true;
+		// do link prediction
+        else if (strcmp(argv[i], "-lp")==0)
+            lp = true;
 
-		else if (strcmp(argv[i], "-ndeep")==0)
+		else if (strcmp(argv[i], "-smul")==0)
 			sample_deep = false;
 
 		// hyperparameters
@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
         else if (strcmp(argv[i], "-dir")==0)
             save_dir = argv[++i];
 
-		else if (strcmp(argv[i], "-ground")==0)
+		else if (strcmp(argv[i], "-comm")==0)
 			ground_truth = argv[++i];
 
 		else if (strcmp(argv[i], "-type2")==0)
@@ -122,22 +122,21 @@ int main(int argc, char* argv[]) {
 
 	Graph graph = Graph(input, directed);
 
-	if (heldout)
+	if (lp)
 	{
-		int sign = graph.push_heldout(100, 1000);
-		if (sign != 0)
-			exit(sign);
+		int sign = graph.push_heldout_with_percentage(0.1);
+		if (sign != 0) exit(sign);
 	}
 
-    GPB gpb(graph, K, Fpshp, Fprte, Bpshp, Bprte, save_dir.c_str(), sample_deep, alpha, beta);
+    GPB gpb(graph,K,Fpshp,Fprte,Bpshp,Bprte,save_dir.c_str(),sample_deep,alpha,beta);
 
     gpb.gibbs(burnin, Ns);
 
-	if (heldout)
+	if (lp)
 	{
 		vector<pair<float,int>> data = gpb.link_prediction(graph.heldouts.back());
 		ROC roc(data);
-		INFO("AUC: %f\n", roc.getAreaUnderCurve());
+		INFO("Link prediction AUC: %f\n", roc.getAreaUnderCurve());
 	}
 
 	vector<set<string>> community = gpb.get_community(gpb.link_component());
@@ -145,9 +144,12 @@ int main(int argc, char* argv[]) {
 	if (ground_truth.size() > 0)
 	{
 		vector<set<string>> base = Metrics<string>::file_to_set(ground_truth, type);
-    	Metrics<string>::F1(community, base);
-		Metrics<string>::NNMI(community, base);
-		Metrics<string>::ONMI(community, base);
+    	INFO("Community detection F1: %lf\n", Metrics<string>::F1(community, base));
+		INFO("Community detection NMI: %lf\n", Metrics<string>::NNMI(community, base));
+		vector<double> onmi = Metrics<string>::ONMI(community, base);
+		INFO("Community detection NMI_lfk: %lf\n", onmi[0]); 
+		INFO("Community detection NMI_max: %lf\n", onmi[1]);
+		INFO("Community detection NMI_sum: %lf\n", onmi[2]);
 	}
     return 0;
 }

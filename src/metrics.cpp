@@ -101,7 +101,7 @@ template <class T>
 double Metrics<T>::NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
 {
     if (is_overlap(g1) || is_overlap(g2))
-        WARN("Metric: group1 or group2 may overlap!\n");
+        WARN("NNMI: input sets may overlap!\n");
 
     size_t n1 = g1.size();
     size_t n2 = g2.size();
@@ -151,15 +151,15 @@ double Metrics<T>::NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
     normalizer /= 2;
 
     double NMI = MI/normalizer;
-    INFO("Metric: NMI: %lf\n",NMI);
+    // INFO("Metric: NMI: %lf\n",NMI);
     return NMI;
 }
 
 template<class T>
-double Metrics<T>::ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
+vector<double> Metrics<T>::ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
 {
     if (!is_overlap(g1) && !is_overlap(g2))
-        WARN("Metric: group1 and group2 are both disjoint!\n");
+        WARN("ONMI: input sets are both disjoint!\n");
     
     set<T> ss;
     for (int i=g1.size()-1; i>=0; i--)
@@ -178,11 +178,11 @@ double Metrics<T>::ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
     double NMIMAX = 0.5 * ( (HX-HXgivenY)/max(HX, HY) + (HY-HYgivenX)/max(HX, HY) );
     double NMISUM = 0.5 * ( (HX-HXgivenY)/((HX+HY)/2) + (HY-HYgivenX)/((HX+HY)/2) );
 
-    INFO("Metric: NMI_lfk: %lf\n", NMILFK);
-    INFO("Metric: NMI_max: %lf\n", NMIMAX);
-    INFO("Metric: NMI_sum: %lf\n", NMISUM);
+    // INFO("Metric: NMI_lfk: %lf\n", NMILFK);
+    // INFO("Metric: NMI_max: %lf\n", NMIMAX);
+    // INFO("Metric: NMI_sum: %lf\n", NMISUM);
 
-    return NMILFK;
+    return vector<double>({NMILFK, NMIMAX, NMISUM});
 }
 
 template <class T>
@@ -257,7 +257,7 @@ template <class T>
 double Metrics<T>::F1(const vector< set<T> >& g1, const vector< set<T> >& g2)
 {
     double score = 0.5 * (F1_one_turn(g1, g2) + F1_one_turn(g2, g1));
-    INFO("Metric: F1: %lf\n", score);
+    // INFO("Metric: F1: %lf\n", score);
     return score;
 }
 

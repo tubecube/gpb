@@ -24,17 +24,17 @@ public:
 		else
 			return file_to_set2(filename);
 	}
-	// each row is a community
-	static vector<set<T>> file_to_set1(const string& filename);
-	// each row is a node-community pair
-	static vector<set<T>> file_to_set2(const string& filename);
 	static void set_to_file(const string& filename, const vector<set<T>>& community);
     static double NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2);
-    static double ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2);
+    static vector<double> ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2);
     static double F1(const vector< set<T> >& g1, const vector< set<T> >& g2);
     static bool is_overlap(const vector< set<T> >& g);
     static void keepOnlyOverlap(vector< set<T> >& g1, vector< set<T> >& g2);
 private:
+	// each row is a community
+	static vector<set<T>> file_to_set1(const string& filename);
+	// each row is a node-community pair
+	static vector<set<T>> file_to_set2(const string& filename);
     static size_t overlap_size(const set<T>&, const set<T>&);
     static void onmi_one_turn(const vector< set<T> >&, const vector< set<T> >&, size_t, double&, double&, double&);
     static double F1_one_turn(const vector< set<T> >&, const vector< set<T> >&);

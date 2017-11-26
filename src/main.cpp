@@ -122,11 +122,10 @@ int main(int argc, char* argv[]) {
 
 	Graph graph = Graph(input, directed);
 
+	const Graph::Heldout* test;
+
 	if (lp)
-	{
-		int sign = graph.push_heldout_with_percentage(0.1);
-		if (sign != 0) exit(sign);
-	}
+		test = graph.push_heldout_with_percentage(0.1, 0.1);
 
     GPB gpb(graph,K,Fpshp,Fprte,Bpshp,Bprte,save_dir.c_str(),sample_deep,alpha,beta);
 
@@ -134,7 +133,7 @@ int main(int argc, char* argv[]) {
 
 	if (lp)
 	{
-		vector<pair<float,int>> data = gpb.link_prediction(graph.heldouts.back());
+		vector<pair<float,int>> data = gpb.link_prediction(*test);
 		ROC roc(data);
 		INFO("Link prediction AUC: %f\n", roc.getAreaUnderCurve());
 	}

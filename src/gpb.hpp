@@ -4,7 +4,7 @@
 #include <vector>
 #include <armadillo>
 #include <random>
-#include "asa103.hpp"
+#include <fstream>
 #include "graph.hpp"
 #include "utils.hpp"
 
@@ -36,7 +36,7 @@ public:
 	vector<set<string>> get_community(const mat& component, bool overlap=false);
 
 	// return score, label pairs
-    vector<pair<float,int>> link_prediction(const Graph::Heldout& test) const;
+    vector<pair<float,int>> link_prediction(const Graph::Heldout& test, bool save_in_file=true, const string& filename="heldout.txt") const;
 
 	static int ECHO_PER_ITERS;
 

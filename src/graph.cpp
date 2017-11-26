@@ -40,8 +40,7 @@ int Graph::read_from_file(const string& filename, bool directed)
 		if (edges.size() < N)
 			edges.resize(2*N);
 
-		if (!directed && sid > did)
-			std::swap(sid, did);
+		check_edge(sid, did);
 		edges[sid].insert(did);
 		/*add edge*/
 
@@ -98,7 +97,7 @@ int Graph::pop_heldout()
 	} return -1;
 }
 
-int Graph::push_heldout(int N0, int N1)
+const Graph::Heldout* Graph::push_heldout(int N0, int N1)
 {
 	DEBUG("Graph: creating heldout with %d links and %d nonlinks\n", N1, N0);
 	/*check*/
@@ -109,10 +108,11 @@ int Graph::push_heldout(int N0, int N1)
 		total_nonlinks += heldout.pairs[0].size();
 		total_links += heldout.pairs[1].size();
 	}
+
 	if (total_nonlinks >= Nzeros/2 || total_links >= Nones/2)
 	{
 		ERROR("Graph: links or nonlinks exceed half, not allowed!\n");
-		return -1;
+		return NULL;
 	}
 
 	heldouts.push_back(Heldout());
@@ -128,8 +128,7 @@ int Graph::push_heldout(int N0, int N1)
 		{
         	source = rand()%N;
         	dest = rand()%N;
-			if (!directed && source > dest)
-				swap(source, dest);
+			check_edge(source, dest);
         } while (source == dest || network(source, dest) != 0 || check_in_heldouts(source, dest, false));
 		current.pairs[0].insert(make_pair(source, dest));
     }
@@ -157,14 +156,14 @@ int Graph::push_heldout(int N0, int N1)
 		}
 		left = N1 - current.pairs[1].size();
 	}
-	return 0;
+
+	return &current;
 }
 
 bool Graph::check_in_heldouts(int source, int dest, bool link) const
 {
 	int idx = link ? 1 : 0;
-	if (!directed && source > dest)
-		swap(source, dest);
+	check_edge(source, dest);
 	pair<int,int> pr = make_pair(source, dest);
 	for (const Heldout& heldout : heldouts)
 		if (heldout.pairs[idx].count(pr) >= 1)

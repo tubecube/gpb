@@ -28,9 +28,7 @@ void GPB::gibbs(int burnin, int Ns)
         		EB = EB*((s-1.0)/s) + B/s;
 				if (s % SAVE_PER_ITERS == 0)
 				{
-					char tmp[50];
-					sprintf(tmp, "%s/%d", save_dir.c_str(), s);
-					save(tmp, EF, EB);
+					save("sample_"+to_string(s), EF, EB);
 				}
 			}
 			if ((iter-1) % ECHO_PER_ITERS == 0)
@@ -60,7 +58,7 @@ void GPB::gibbs(int burnin, int Ns)
 		
 		// additional samples for zeros
 		if (beta != 0.0)
-			graph.push_heldout(beta*graph.Nzeros, 0);
+			graph.push_heldout_with_percentage(beta, 0.0);
 		// additional samples in heldouts
 		for (const Graph::Heldout& heldout : graph.heldouts)
 		{
@@ -103,9 +101,7 @@ void GPB::gibbs(int burnin, int Ns)
 	F = EF; B = EB;
 	INFO("GPB: final likelihood after %d samples: %lf\n", Ns, final_elbo);
 
-	char tmp[50];
-	sprintf(tmp, "%s/final", save_dir.c_str());
-	save(tmp, EF, EB);
+	save("sample_final", EF, EB);
 }
 
 void GPB::sample_phi(int i, int j, bool sample_deep, bool accept_zero)
@@ -209,19 +205,20 @@ void GPB::init()
     Brte = randu<mat>(K,K) * Bprte;
     sample_B(Bshp, Brte);
 
-	char tmp[50];
-	sprintf(tmp, "%s/init", save_dir.c_str());
-	save(tmp, F, B);
+	save("sample_init", F, B);
 }
 
-vector<pair<float,int>> GPB::link_prediction(const Graph::Heldout& test) const
+vector<pair<float,int>> GPB::link_prediction(const Graph::Heldout& test, bool save_in_file, const string& filename) const
 {
 	DEBUG("GPB: predict links in test set\n");
 
 	vector<pair<float,int>> pool;
 
+	ofstream stream;
+	if (save_in_file)
+		stream.open(save_dir+"/"+filename);
+
 	for (int i = 0; i < 2; i++)
-	{
 		for (const pair<int,int>& pr : test.pairs[i])
 		{
 			int source = pr.first;
@@ -229,10 +226,15 @@ vector<pair<float,int>> GPB::link_prediction(const Graph::Heldout& test) const
 			float mean = accu(F.col(source).t() * B * F.col(dest));
 			float one_prob = 1 - exp(-mean);
 			pool.push_back(make_pair(one_prob,i));
+			if (save_in_file)
+				stream << graph.get_str(source) << '\t' << graph.get_str(dest)
+					<< '\t' << i << '\t' << one_prob << endl;
 		}
-	}
-	return pool;
 
+	if (save_in_file)
+		stream.close();
+
+	return pool;
 }
 
 double GPB::compute_elbo(const mat& F, const mat& B) const
@@ -288,12 +290,12 @@ vector<set<string>> GPB::get_community(const mat& component, bool overlap)
 
 void GPB::save(const string& prefix, const mat& F, const mat& B) const
 {
-	F.save(prefix+"_F.txt", arma_ascii);
-	B.save(prefix+"_B.txt", arma_ascii);
+	F.save(save_dir+"/"+prefix+"F.txt", arma_ascii);
+	B.save(save_dir+"/"+prefix+"B.txt", arma_ascii);
 }
 
 void GPB::load(const string& prefix)
 {
-	F.load(prefix+"_F.txt");
-	B.load(prefix+"_B.txt");
+	F.load(save_dir+"/"+prefix+"F.txt");
+	B.load(save_dir+"/"+prefix+"B.txt");
 }

@@ -53,22 +53,28 @@ public:
 
 	vector<Heldout> heldouts;
 
-	int push_heldout(int N0, int N1);
+	const Heldout* push_heldout(int N0, int N1);
 
-	int push_heldout_with_percentage(double pctg)
+	const Heldout* push_heldout_with_percentage(double pctg0, double pctg1)
 	{
-		if (pctg < 1 && pctg > 0)
-			return push_heldout(int(Nzeros*pctg), int(Nones*pctg));
+		if (pctg0 < 1 && pctg0 > 0 && pctg1 < 1 && pctg1 > 0)
+			return push_heldout(int(Nzeros*pctg0), int(Nones*pctg1));
 		else
 		{
 			ERROR("Heldout: not a valid percentage!\n");
-			return -1;
+			return NULL;
 		}
 	}
 
 	int pop_heldout();
 
 	bool check_in_heldouts(int source, int dest, bool link) const;
+
+	void check_edge(int& source, int& dest) const
+	{
+		if (!directed && source > dest)
+			std::swap(source, dest);
+	}
 
 	int N;
 	unsigned long Nones;

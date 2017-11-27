@@ -85,7 +85,6 @@ void GPB::gibbs(int burnin, int Ns)
 		if (beta != 0.0)
 			graph.pop_heldout();
 
-
 		if (directed)
         	Frte += (B+B.t())*(repmat(sum(F,1), 1, N) - F);
 		else
@@ -204,8 +203,7 @@ void GPB::init()
     Bshp = randu<mat>(K,K) % ((alpha-1)*eye<mat>(K,K) + ones<mat>(K,K)) * Bpshp;
     Brte = randu<mat>(K,K) * Bprte;
     sample_B(Bshp, Brte);
-
-	save("sample_init", F, B);
+	save("init", F, B);
 }
 
 vector<pair<float,int>> GPB::link_prediction(const Graph::Heldout& test, bool save_in_file, const string& filename) const

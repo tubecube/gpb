@@ -1,85 +1,83 @@
-template <class T>
-vector<set<T>> Metrics<T>::file_to_set2(const string& filename)
+#include "metrics.hpp"
+
+
+vector<set<string>> Metrics::file_to_set2(const string& filename)
 {
-	vector<set<T>> ground;
+	vector<set<string>> ground;
     ifstream stream(filename);
 	if (stream.is_open())
 	{
 		for (string line; getline(stream, line); )
 		{
 			int comm;
-			T node;
+			string node;
 			istringstream fields(line);
 			fields >> node >> comm;
 			if (ground.size() < comm+1)
 				ground.resize(comm+1);
 			ground[comm].insert(node);
 		}
-	} else ERROR("Metric: fail opening file! [%s]\n", filename.c_str());
+	} else ERROR("File to set: fail opening file %s\n", filename.c_str());
 	return ground;
 }
 
 
-template <class T>
-vector<set<T>> Metrics<T>::file_to_set1(const string& filename)
+vector<set<string>> Metrics::file_to_set1(const string& filename)
 {
-	vector<set<T>> ground;
+	vector<set<string>> ground;
     ifstream stream(filename);
 	if (stream.is_open())
 	{
 		for (string line; getline(stream, line); )
 		{
-			set<T> s;
+			set<string> s;
 			istringstream fields(line);
-			for (T field; fields >> field; )
+			for (string field; fields >> field; )
 			{
 				if (field.length() == 0)
-					WARN("Metric: two consecutive tabs, or tab at the start of a line. Ignoring empty fields like this.\n");
+					WARN("File to set: two consecutive tabs, or tab at the start of a line. Ignoring empty fields like this.\n");
 				else
 					s.insert(field);
 			}
 			if (s.size() == 0)
-				WARN("Metric: ignoring empty sets.\n");
+				WARN("File to set: ignoring empty sets.\n");
 			else
 				ground.push_back(s);
 		}
-	} else ERROR("Metric: fail opening file! [%s]\n", filename.c_str());
+	} else ERROR("File to set: fail opening file! %s\n", filename.c_str());
 
     return ground;
 }
 
 
-template <class T>
-void Metrics<T>::set_to_file1(const string& filename, const vector<set<T>>& comm)
+void Metrics::set_to_file1(const string& filename, const vector<set<string>>& comm)
 {
 	ofstream stream(filename);
-	for (const set<T>& c : comm)
+	for (const set<string>& c : comm)
 	{
-		for (const T& node : c)
+		for (const string& node : c)
 			stream << node << '\t';
 		stream << '\n';
 	}
 	stream.close();
 }
 
-template <class T>
-void Metrics<T>::set_to_file2(const string& filename, const vector<set<T>>& comm)
+void Metrics::set_to_file2(const string& filename, const vector<set<string>>& comm)
 {
 	ofstream stream(filename);
 	for (int i = 0; i < comm.size(); i++)
 	{
-		for (const T& node : comm[i])
+		for (const string& node : comm[i])
 			stream << node << '\t' << i;
 		stream << '\n';
 	}
 	stream.close();
 }
 
-template <class T>
-void Metrics<T>::keepOnlyOverlap(vector<set<T>>& g1, vector<set<T>>& g2)
+void Metrics::keepOnlyOverlap(vector<set<string>>& g1, vector<set<string>>& g2)
 {
-    std::set<T> set1;
-    std::set<T> set2;
+    std::set<string> set1;
+    std::set<string> set2;
     for (int i=g2.size()-1; i>=0; i--)
         set2.insert(g2[i].begin(), g2[i].end());
 
@@ -111,8 +109,7 @@ void Metrics<T>::keepOnlyOverlap(vector<set<T>>& g1, vector<set<T>>& g2)
     }
 }
 
-template <class T>
-double Metrics<T>::NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
+double Metrics::NNMI(const vector<set<string>>& g1, const vector<set<string>>& g2)
 {
     if (is_overlap(g1) || is_overlap(g2))
         WARN("NNMI: input sets may overlap!\n");
@@ -131,7 +128,7 @@ double Metrics<T>::NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
     for (int i=0; i<n2; ++i)
         N2[i] = g2[i].size();
 
-    set<T> ss;
+    set<string> ss;
     for (int i=g1.size()-1; i>=0; i--)
         ss.insert(g1[i].begin(), g1[i].end());
     for (int i=g2.size()-1; i>=0; i--)
@@ -165,17 +162,16 @@ double Metrics<T>::NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
     normalizer /= 2;
 
     double NMI = MI/normalizer;
-    // INFO("Metric: NMI: %lf\n",NMI);
+    INFO("Metric: NMI: %lf\n",NMI);
     return NMI;
 }
 
-template<class T>
-vector<double> Metrics<T>::ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2)
+vector<double> Metrics::ONMI(const vector<set<string>>& g1, const vector<set<string>>& g2)
 {
     if (!is_overlap(g1) && !is_overlap(g2))
         WARN("ONMI: input sets are both disjoint!\n");
     
-    set<T> ss;
+    set<string> ss;
     for (int i=g1.size()-1; i>=0; i--)
         ss.insert(g1[i].begin(), g1[i].end());
     for (int i=g2.size()-1; i>=0; i--)
@@ -192,15 +188,14 @@ vector<double> Metrics<T>::ONMI(const vector< set<T> >& g1, const vector< set<T>
     double NMIMAX = 0.5 * ( (HX-HXgivenY)/max(HX, HY) + (HY-HYgivenX)/max(HX, HY) );
     double NMISUM = 0.5 * ( (HX-HXgivenY)/((HX+HY)/2) + (HY-HYgivenX)/((HX+HY)/2) );
 
-    // INFO("Metric: NMI_lfk: %lf\n", NMILFK);
-    // INFO("Metric: NMI_max: %lf\n", NMIMAX);
-    // INFO("Metric: NMI_sum: %lf\n", NMISUM);
+    INFO("Metric: NMI_lfk: %lf\n", NMILFK);
+    INFO("Metric: NMI_max: %lf\n", NMIMAX);
+    INFO("Metric: NMI_sum: %lf\n", NMISUM);
 
     return vector<double>({NMILFK, NMIMAX, NMISUM});
 }
 
-template <class T>
-void Metrics<T>::onmi_one_turn(const vector< set<T> >& g1, const vector< set<T> >& g2, size_t N,
+void Metrics::onmi_one_turn(const vector<set<string>>& g1, const vector<set<string>>& g2, size_t N,
                         double& HX, double& HXgivenY, double& lfkIXY)
 {
     HX = .0; HXgivenY = .0; lfkIXY = .0;
@@ -233,22 +228,22 @@ void Metrics<T>::onmi_one_turn(const vector< set<T> >& g1, const vector< set<T> 
     lfkIXY /= g1.size();
 }
 
-template <class T>
-size_t Metrics<T>::overlap_size(const set<T>& setx, const set<T>& sety)
+size_t Metrics::overlap_size(const set<string>& setx, const set<string>& sety)
 {
     size_t size_x = setx.size();
     size_t size_y = sety.size();
-    vector<T> tmp( min( size_x, size_y ) );
-    typename vector<T>::iterator it;
+	size_t min_size = min(size_x, size_y);
+	if (min_size == 0)	return 0;
+    vector<string> tmp(min_size);
+    typename vector<string>::iterator it;
     it = set_intersection(setx.begin(), setx.end(), sety.begin(), sety.end(), tmp.begin());
     size_t overlap = it - tmp.begin();
     return overlap;
 }
 
-template<class T>
-bool Metrics<T>::is_overlap(const vector<set<T>>& g)
+bool Metrics::is_overlap(const vector<set<string>>& g)
 {
-    set<T> ss;
+    set<string> ss;
     size_t n = g.size();
     size_t N = 0;
     for (int i=0; i<n; ++i)
@@ -261,22 +256,50 @@ bool Metrics<T>::is_overlap(const vector<set<T>>& g)
     return false;
 }
 
-template<class T>
-inline double Metrics<T>::H(double p)
+inline double Metrics::H(double p)
 {
     return p == .0 ? .0 : -p*log2(p);
 }
 
-template <class T>
-double Metrics<T>::F1(const vector<set<T>>& g1, const vector<set<T>>& g2)
+double Metrics::F1(const vector<set<string>>& g1, const vector<set<string>>& g2)
 {
-    double score = 0.5 * (F1_one_turn(g1, g2) + F1_one_turn(g2, g1));
-    // INFO("Metric: F1: %lf\n", score);
-    return score;
+	double score = 0.0;
+	size_t g1_total = 0, g2_total = 0;
+	for (int i=g1.size()-1; i>=0; i--)
+		g1_total += g1[i].size();
+	for (int i=g2.size()-1; i>=0; i--)
+		g2_total += g2[i].size();
+
+	vector<double> store1(g1.size(), 0.0);
+	vector<double> store2(g2.size(), 0.0);
+
+	for (int i=g1.size()-1; i>=0; i--)
+	{
+		for (int j=g2.size()-1; j>=0; j--)
+		{
+			double F1 = 0.0;
+			size_t overlap = overlap_size(g1[i], g2[j]);
+			if (overlap != 0)
+			{
+				double precision = (double) overlap / g2[j].size();
+				double recall = (double) overlap / g1[i].size();
+				F1 = 2*precision*recall / (precision+recall);
+			}
+			store1[i] = max(store1[i], F1);
+			store2[j] = max(store2[j], F1);
+		}
+	}
+	for (int i=g1.size()-1; i>=0; i--)
+		score += store1[i]*((double)g1[i].size()/g1_total);
+	for (int i=g2.size()-1; i>=0; i--)
+		score += store2[i]*((double)g2[i].size()/g2_total);
+
+	score /= 2;
+    INFO("Metric: F1: %lf\n", score);
+	return score;
 }
 
-template <class T>
-double Metrics<T>::F1_one_turn(const vector< set<T> > &g1, const vector< set<T> >& g2)
+double Metrics::F1_one_turn(const vector< set<string> > &g1, const vector< set<string> >& g2)
 {
     double F1_avg = 0.0; 
 	size_t total_size = 0;
@@ -288,9 +311,12 @@ double Metrics<T>::F1_one_turn(const vector< set<T> > &g1, const vector< set<T> 
         for (int j=g2.size()-1; j>=0; j--)
         {
             size_t overlap = overlap_size(g1[i], g2[j]);
-            double precision = (double) overlap / g2[j].size();
-            double recall = (double) overlap / g1[i].size();
-            F1 = max(F1, 2*precision*recall/(precision+recall));
+			if (overlap != 0)
+			{
+				double precision = (double) overlap / g2[j].size();
+				double recall = (double) overlap / g1[i].size();
+				F1 = max(F1, 2*precision*recall/(precision+recall));
+			}
         }
         F1_avg += F1*((double)g1[i].size()/total_size);
     }

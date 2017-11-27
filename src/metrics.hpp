@@ -17,14 +17,20 @@ template <class T>
 class Metrics {
 public:
 	typedef enum {type1, type2} file_type;
-	static vector<set<T>> file_to_set(const string& filename, file_type type)
+	static vector<set<T>> file_to_set(const string& filename, file_type type=type1)
 	{
 		if (type == type1)
 			return file_to_set1(filename);
 		else
 			return file_to_set2(filename);
 	}
-	static void set_to_file(const string& filename, const vector<set<T>>& community);
+	static void set_to_file(const string& filename, const vector<set<T>>& community, file_type type=type1)
+	{
+		if (type == type1)
+			set_to_file1(filename, community);
+		else
+			set_to_file2(filename, community);
+	}
     static double NNMI(const vector< set<T> >& g1, const vector< set<T> >& g2);
     static vector<double> ONMI(const vector< set<T> >& g1, const vector< set<T> >& g2);
     static double F1(const vector< set<T> >& g1, const vector< set<T> >& g2);
@@ -35,6 +41,8 @@ private:
 	static vector<set<T>> file_to_set1(const string& filename);
 	// each row is a node-community pair
 	static vector<set<T>> file_to_set2(const string& filename);
+	static void set_to_file1(const string& filename, const vector<set<T>>& community);
+	static void set_to_file2(const string& filename, const vector<set<T>>& community);
     static size_t overlap_size(const set<T>&, const set<T>&);
     static void onmi_one_turn(const vector< set<T> >&, const vector< set<T> >&, size_t, double&, double&, double&);
     static double F1_one_turn(const vector< set<T> >&, const vector< set<T> >&);

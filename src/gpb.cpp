@@ -2,7 +2,7 @@
 
 int GPB::ECHO_PER_ITERS = 5;
 
-int GPB::SAVE_PER_ITERS = 10;
+int GPB::SAVE_PER_ITERS = 20;
 
 void GPB::gibbs(int burnin, int Ns)
 {

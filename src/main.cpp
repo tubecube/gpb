@@ -136,13 +136,16 @@ int main(int argc, char* argv[]) {
 		vector<pair<float,int>> data = gpb.link_prediction(*test);
 		ROC roc(data);
 		INFO("Link prediction AUC: %f\n", roc.getAreaUnderCurve());
+		roc.writeToFile(save_dir+"/roc-"+input);
 	}
 
 	vector<set<string>> community = gpb.get_community(gpb.link_component());
-	Metrics<string>::set_to_file(save_dir+"/community.dat", community);
+	Metrics<string>::set_to_file(save_dir+"/community.dat", community, type);
 	if (ground_truth.size() > 0)
 	{
 		vector<set<string>> base = Metrics<string>::file_to_set(ground_truth, type);
+		Metrics<string>::keepOnlyOverlap(community, base);
+		Metrics<string>::set_to_file(save_dir+"/ground_truth.dat", community, type);
     	INFO("Community detection F1: %lf\n", Metrics<string>::F1(community, base));
 		INFO("Community detection NMI: %lf\n", Metrics<string>::NNMI(community, base));
 		vector<double> onmi = Metrics<string>::ONMI(community, base);

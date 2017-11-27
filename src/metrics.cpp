@@ -48,14 +48,28 @@ vector<set<T>> Metrics<T>::file_to_set1(const string& filename)
     return ground;
 }
 
+
 template <class T>
-void Metrics<T>::set_to_file(const string& filename, const vector<set<T>>& comm)
+void Metrics<T>::set_to_file1(const string& filename, const vector<set<T>>& comm)
 {
 	ofstream stream(filename);
 	for (const set<T>& c : comm)
 	{
 		for (const T& node : c)
 			stream << node << '\t';
+		stream << '\n';
+	}
+	stream.close();
+}
+
+template <class T>
+void Metrics<T>::set_to_file2(const string& filename, const vector<set<T>>& comm)
+{
+	ofstream stream(filename);
+	for (int i = 0; i < comm.size(); i++)
+	{
+		for (const T& node : comm[i])
+			stream << node << '\t' << i;
 		stream << '\n';
 	}
 	stream.close();
@@ -232,7 +246,7 @@ size_t Metrics<T>::overlap_size(const set<T>& setx, const set<T>& sety)
 }
 
 template<class T>
-bool Metrics<T>::is_overlap(const vector< set<T> >& g)
+bool Metrics<T>::is_overlap(const vector<set<T>>& g)
 {
     set<T> ss;
     size_t n = g.size();
@@ -254,7 +268,7 @@ inline double Metrics<T>::H(double p)
 }
 
 template <class T>
-double Metrics<T>::F1(const vector< set<T> >& g1, const vector< set<T> >& g2)
+double Metrics<T>::F1(const vector<set<T>>& g1, const vector<set<T>>& g2)
 {
     double score = 0.5 * (F1_one_turn(g1, g2) + F1_one_turn(g2, g1));
     // INFO("Metric: F1: %lf\n", score);
@@ -265,6 +279,9 @@ template <class T>
 double Metrics<T>::F1_one_turn(const vector< set<T> > &g1, const vector< set<T> >& g2)
 {
     double F1_avg = 0.0; 
+	size_t total_size = 0;
+	for (int i=g1.size()-1; i>=0; i--)
+		total_size += g1[i].size();
     for (int i=g1.size()-1; i>=0; i--)
     {
         double F1 = 0.0;
@@ -275,7 +292,7 @@ double Metrics<T>::F1_one_turn(const vector< set<T> > &g1, const vector< set<T> 
             double recall = (double) overlap / g1[i].size();
             F1 = max(F1, 2*precision*recall/(precision+recall));
         }
-        F1_avg += F1;
+        F1_avg += F1*((double)g1[i].size()/total_size);
     }
-    return F1_avg / g1.size();
+    return F1_avg;
 }

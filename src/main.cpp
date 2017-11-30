@@ -10,6 +10,8 @@
 
 using namespace std;
 
+string parse(const string& input);
+
 void usage();
 
 void compare_with_ground_truth(vector<set<string>>& community, vector<set<string>>& ground_truth);
@@ -94,7 +96,9 @@ int main(int argc, char* argv[]) {
     }
 
 	if (save_dir.size() == 0)
-		save_dir = "gpb_K" + to_string(K);
+		save_dir = "model_"+parse(input)+"_K"+to_string(K);
+	else if (save_dir.back() == '/')
+		save_dir.pop_back();
 
 	Graph graph = Graph(input, directed);
 
@@ -112,7 +116,7 @@ int main(int argc, char* argv[]) {
 		vector<pair<float,int>> data = gpb.link_prediction(*test);
 		ROC roc(data);
 		INFO("Link prediction AUC: %f\n", roc.getAreaUnderCurve());
-		roc.writeToFile(save_dir+"/roc-"+input);
+		roc.writeToFile(save_dir+"/roc-"+parse(input));
 	}
 	vector<set<string>> community = gpb.get_community(gpb.link_component());
 	Metrics::set_to_file(save_dir+"/community.dat", community, type);
@@ -122,6 +126,7 @@ int main(int argc, char* argv[]) {
 		compare_with_ground_truth(community, ground_truth);
 		Metrics::set_to_file(save_dir+"/ground_truth.dat", ground_truth, type);
 	}
+	// gpb.output_network_and_block();
     return 0;
 }
 
@@ -154,4 +159,24 @@ void compare_with_ground_truth(vector<set<string>>& community, vector<set<string
 	Metrics::F1(community, ground_truth); 
 	Metrics::NNMI(community, ground_truth);
 	Metrics::ONMI(community, ground_truth);
+}
+
+string parse(const string& input)
+{
+	string filename;
+	size_t end = input.size();
+	int i;
+	for (i = input.size()-1; i >= 0; i--)
+		if (input[i] == '.')
+		{
+			end = i;
+		}
+		else if (input[i] == '/')
+		{
+			filename = input.substr(i+1, end-1-i);
+			break;
+		}
+	if (i == -1)
+		filename = input.substr(0, end);
+	return filename;
 }

@@ -206,6 +206,53 @@ void GPB::init()
 	save("init", F, B);
 }
 
+void GPB::output_network_and_block()
+{
+	mat component = link_component();
+	vector<vector<int>> comm(K);
+	for (int i = 0; i < N; i++)
+		comm[component.col(i).index_max()].push_back(i);
+	// push back original index
+	for (int k = 0; k < K; k++)
+		comm[k].push_back(k);
+	// reorder
+	sort(comm.begin(), comm.end(), [](const vector<int>& a, const vector<int>& b) {return a.size()>b.size();});
+	mat RB(K,K);
+	for (int k1 = 0; k1 < K; k1++)
+		for (int k2 = 0; k2 < K; k2++)
+			RB(k1,k2) = B(comm[k1].back(),comm[k2].back());
+	// pop back original index
+	for (int k = 0; k < K; k++)
+		comm[k].pop_back();
+
+	for (int k = 0; k < K; k++)
+		cout << comm[k].size() << endl;
+
+	vector<int> reorder_index;
+	for (int k = 0; k < K; k++)
+		for (int idx : comm[k])
+			reorder_index.push_back(idx);
+	// compute prob
+	mat RN(N,N);
+	mat ON(N,N);
+	for (int i = 0; i < N; i++)
+		for (int j = 0; j < N; j++)
+		{
+			int source = reorder_index[i];
+			int target = reorder_index[j];
+			double mean = accu(F.col(source).t() * B * F.col(target));
+			double one_prob = 1 - exp(-mean);
+			RN(i,j) = one_prob;
+			graph.check_edge(source, target);
+			ON(i,j) = graph.network(source, target);
+		}
+	// output
+	RN.save(save_dir+"/reorder_estimate_network.txt", raw_ascii);
+	RB.save(save_dir+"/reorder_block.txt", raw_ascii);
+	ON.save(save_dir+"/reorder_orginal_network.txt", raw_ascii);
+}
+
+
 vector<pair<float,int>> GPB::link_prediction(const Graph::Heldout& test, bool save_in_file, const string& filename) const
 {
 	DEBUG("GPB: predict links in test set\n");

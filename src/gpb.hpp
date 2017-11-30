@@ -25,6 +25,8 @@ public:
 		init();
 	}
 
+	void output_network_and_block();
+
     void gibbs(int burnin, int Ns);
 
     void save(const string& prefix, const mat& F, const mat& B) const;

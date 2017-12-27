@@ -5,7 +5,7 @@ int Graph::read_from_file(const string& filename, bool directed)
 	ifstream stream(filename);
 	if (stream.is_open() == false)
 	{
-    	ERROR("Graph: fail opening file %s\n", filename.c_str());
+		ERROR("Graph: fail opening file %s\n", filename.c_str());
 		return 2;
 	}
 
@@ -126,8 +126,8 @@ const Graph::Heldout* Graph::push_heldout(int N0, int N1)
 		int source, dest;
 		do
 		{
-        	source = rand()%N;
-        	dest = rand()%N;
+			source = rand()%N;
+			dest = rand()%N;
 			check_edge(source, dest);
 		} while (source == dest || network(source, dest) != 0 || check_in_heldouts(source, dest, false));
 		current.pairs[0].insert(make_pair(source, dest));

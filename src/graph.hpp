@@ -19,14 +19,14 @@ class Graph
 public:
 	SpMat<unsigned> network;
 
-    Graph():N(0),Nones(0),Nzeros(0){}
+	Graph():N(0),Nones(0),Nzeros(0){}
 
-    Graph(const string &filename, bool directed):N(0),Nones(0),Nzeros(0)
+	Graph(const string &filename, bool directed):N(0),Nones(0),Nzeros(0)
 	{
-        read_from_file(filename, directed);
-    }
+		read_from_file(filename, directed);
+	}
 
-    int read_from_file(const string &filename, bool directed);
+	int read_from_file(const string &filename, bool directed);
 
 	bool is_directed() const {return directed;}
 
@@ -87,7 +87,7 @@ private:
 	vector<set<int>> edges;
 	unordered_map<string, int> str2id;
 	vector<string> id2str;
-    int check_id(const string&);
+	int check_id(const string&);
 };
 
 #endif

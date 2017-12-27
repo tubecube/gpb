@@ -15,7 +15,7 @@ void GPB::gibbs(int burnin, int Ns)
 
 	bool directed = graph.is_directed();
 
-    for (int iter=1; iter<=burnin+Ns; iter++)
+	for (int iter=1; iter<=burnin+Ns; iter++)
 	{
 		if ((iter-1) > burnin || (iter-1) % ECHO_PER_ITERS == 0)
 		{
@@ -24,8 +24,8 @@ void GPB::gibbs(int burnin, int Ns)
 			{
 				int s = iter- 1 - burnin;
 				final_elbo = final_elbo*((s-1.0)/s) + elbo/s;
-        		EF = EF*((s-1.0)/s) + F/s;
-        		EB = EB*((s-1.0)/s) + B/s;
+				EF = EF*((s-1.0)/s) + F/s;
+				EB = EB*((s-1.0)/s) + B/s;
 				if (s % SAVE_PER_ITERS == 0)
 				{
 					save("sample_"+to_string(s), EF, EB);
@@ -35,23 +35,23 @@ void GPB::gibbs(int burnin, int Ns)
 				INFO("GPB: likelihood after %d iters: %lf\n", iter-1, elbo);
 		}
 
-        Bshp.fill(Bpshp);
-        Fshp.fill(Fpshp);
-        Brte.fill(Bprte);
-        Frte.fill(Fprte);
+		Bshp.fill(Bpshp);
+		Fshp.fill(Fpshp);
+		Brte.fill(Bprte);
+		Frte.fill(Fprte);
 
 		for (auto it = graph.network.begin(); it != graph.network.end(); ++it)
 		{
-        	int i = it.row();
+			int i = it.row();
 			int j = it.col();
 			// omit heldouts
 			if (graph.check_in_heldouts(i, j, true))
 				continue;
-            sample_phi(i, j, sample_deep, false);
-            Fshp.col(i) += sum(phi, 1);
-            Fshp.col(j) += sum(phi, 0).t();
+			sample_phi(i, j, sample_deep, false);
+			Fshp.col(i) += sum(phi, 1);
+			Fshp.col(j) += sum(phi, 0).t();
 			if (directed)
-            	Bshp += phi;
+				Bshp += phi;
 			else
 				Bshp += (phi+phi.t()) / 2;
 		}
@@ -86,17 +86,17 @@ void GPB::gibbs(int burnin, int Ns)
 			graph.pop_heldout();
 
 		if (directed)
-        	Frte += (B+B.t())*(repmat(sum(F,1), 1, N) - F);
+			Frte += (B+B.t())*(repmat(sum(F,1), 1, N) - F);
 		else
-        	Frte += B*(repmat(sum(F,1), 1, N) - F);
-        sample_F(Fshp, Frte);
+			Frte += B*(repmat(sum(F,1), 1, N) - F);
+		sample_F(Fshp, Frte);
 
 		if (directed)
 			Brte += sum(F,1)*sum(F,1).t() - F*F.t();
 		else
 			Brte += (sum(F,1)*sum(F,1).t() - F*F.t()) / 2;
-        sample_B(Bshp, Brte);
-    }
+		sample_B(Bshp, Brte);
+	}
 	F = EF; B = EB;
 	INFO("GPB: final likelihood after %d samples: %lf\n", Ns, final_elbo);
 
@@ -106,12 +106,12 @@ void GPB::gibbs(int burnin, int Ns)
 void GPB::sample_phi(int i, int j, bool sample_deep, bool accept_zero)
 {
 	phi.zeros();
-    mat factors = (F.col(i) * F.col(j).t()) % B;
-    double rate = accu(factors);
+   	mat factors = (F.col(i) * F.col(j).t()) % B;
+	double rate = accu(factors);
 	poisson_distribution<int> pd(rate);
 	uniform_real_distribution<double> ud(0,1);
 
-    int num;
+	int num;
 	if (accept_zero)
 	{
 		num = pd(generator);
@@ -155,14 +155,14 @@ void GPB::sample_F(const mat& Fshp, const mat& Frte)
 	int rows = Fshp.n_rows;
 	int cols = Fshp.n_cols;
 	F.zeros();
-    for (int n=0; n<cols; ++n)
+	for (int n=0; n<cols; ++n)
 	{
-        for (int k=0; k<rows; ++k)
+		for (int k=0; k<rows; ++k)
 		{
-            gamma_distribution<double> gd(Fshp(k,n), 1.0/Frte(k,n));
-            F(k,n) = gd(generator);
-        }
-    }
+			gamma_distribution<double> gd(Fshp(k,n), 1.0/Frte(k,n));
+			F(k,n) = gd(generator);
+		}
+	}
 }
 
 void GPB::sample_B(const mat& Bshp, const mat& Brte)
@@ -188,21 +188,21 @@ void GPB::sample_B(const mat& Bshp, const mat& Brte)
 
 void GPB::init()
 {
-    set_seed(generator);
-    arma_rng::set_seed_random();
+	set_seed(generator);
+	arma_rng::set_seed_random();
 	N = graph.n_nodes();
 
 	phi.set_size(K,K);
 
 	F.set_size(K,N);
-    Fshp = randu<mat>(K,N) * Fpshp;
-    Frte = randu<mat>(K,N) * Fprte;
-    sample_F(Fshp, Frte);
+	Fshp = randu<mat>(K,N) * Fpshp;
+	Frte = randu<mat>(K,N) * Fprte;
+	sample_F(Fshp, Frte);
 
 	B.set_size(K,K);
-    Bshp = randu<mat>(K,K) % ((alpha-1)*eye<mat>(K,K) + ones<mat>(K,K)) * Bpshp;
-    Brte = randu<mat>(K,K) * Bprte;
-    sample_B(Bshp, Brte);
+	Bshp = randu<mat>(K,K) % ((alpha-1)*eye<mat>(K,K) + ones<mat>(K,K)) * Bpshp;
+	Brte = randu<mat>(K,K) * Bprte;
+	sample_B(Bshp, Brte);
 	save("init", F, B);
 }
 
@@ -284,33 +284,33 @@ vector<pair<float,int>> GPB::link_prediction(const Graph::Heldout& test, bool sa
 
 double GPB::compute_elbo(const mat& F, const mat& B) const
 {
-    double s = .0;
+	double s = .0;
 	for (auto it=graph.network.begin(); it!=graph.network.end(); ++it)
 	{
 		int i = it.row();
-        int j = it.col();
-        double mean = accu( F.col(i).t() * B * F.col(j) );
+		int j = it.col();
+		double mean = accu( F.col(i).t() * B * F.col(j) );
 		double one_prob = 1 - exp(-mean);
-        s += log(one_prob);
+		s += log(one_prob);
 		s -= (-mean);
 	}
 	vec tmp = sum(F,1);
 	s += -accu(tmp.t() * B * tmp);
-    return s;
+	return s;
 }
 
 mat GPB::link_component()
 {
-    mat component = zeros<mat>(K,N);
+	mat component = zeros<mat>(K,N);
 
 	for (auto it=graph.network.begin(); it!=graph.network.end(); ++it)
 	{
 		int i = it.row();
 		int j = it.col();
-        mat phi = F.col(i) * F.col(j).t() % B;
-        component.col(i) += sum(phi,1);
-        component.col(j) += sum(phi,0).t();
-    }
+		mat phi = F.col(i) * F.col(j).t() % B;
+		component.col(i) += sum(phi,1);
+		component.col(j) += sum(phi,0).t();
+	}
 	return component;
 }
 

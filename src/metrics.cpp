@@ -4,7 +4,7 @@
 vector<set<string>> Metrics::file_to_set2(const string& filename)
 {
 	vector<set<string>> ground;
-  ifstream stream(filename);
+	ifstream stream(filename);
 	if (stream.is_open())
 	{
 		for (string line; getline(stream, line); )
@@ -25,7 +25,7 @@ vector<set<string>> Metrics::file_to_set2(const string& filename)
 vector<set<string>> Metrics::file_to_set1(const string& filename)
 {
 	vector<set<string>> ground;
-    ifstream stream(filename);
+	ifstream stream(filename);
 	if (stream.is_open())
 	{
 		for (string line; getline(stream, line); )
@@ -295,7 +295,7 @@ double Metrics::F1(const vector<set<string>>& g1, const vector<set<string>>& g2)
 		score += store2[i]*((double)g2[i].size()/g2_total);
 
 	score /= 2;
-    INFO("Metric: F1: %lf\n", score);
+	INFO("Metric: F1: %lf\n", score);
 	return score;
 }
 

@@ -27,9 +27,9 @@ public:
 
 	void output_network_and_block();
 
-  void gibbs(int burnin, int Ns);
+	void gibbs(int burnin, int Ns);
 
-  void save(const string& prefix, const mat& F, const mat& B) const;
+	void save(const string& prefix, const mat& F, const mat& B) const;
 
 	void load(const string& prefix);
 
@@ -38,7 +38,7 @@ public:
 	vector<set<string>> get_community(const mat& component, bool overlap=false);
 
 	// return score, label pairs
-    vector<pair<float,int>> link_prediction(const Graph::Heldout& test, bool save_in_file=true, const string& filename="heldout.txt") const;
+	vector<pair<float,int>> link_prediction(const Graph::Heldout& test, bool save_in_file=true, const string& filename="heldout.txt") const;
 
 	static int ECHO_PER_ITERS;
 
@@ -51,51 +51,51 @@ private:
 
 	int N;
 
-    int K;
+	int K;
 
-    double Fpshp;
+	double Fpshp;
 
-    double Fprte;
+	double Fprte;
 
-    double Bpshp;
+	double Bpshp;
 
-    double Bprte;
+	double Bprte;
 
 	double beta;
 
 	double alpha;
 
-    mat Frte;
+	mat Frte;
 
-    mat Fshp;
+	mat Fshp;
 
-  mat F;
+	mat F;
 
-  mat Bshp;
+	mat Bshp;
 
-  mat Brte;
+	mat Brte;
 
-  mat B;
+	mat B;
 
 	mat phi;
 
 	string save_dir;
 
-  bool sample_deep;
+	bool sample_deep;
 
-  void init();
+	void init();
 
-  double compute_elbo(const mat& F, const mat& B) const;
+	double compute_elbo(const mat& F, const mat& B) const;
 
 	//double heldout_likelihood(const Graph::Heldout& heldout) const;
 
-  void sample_phi(int i, int j, bool sample_deep, bool accept_zero);
+	void sample_phi(int i, int j, bool sample_deep, bool accept_zero);
 
-  void sample_F(const mat& Fshp, const mat& Frte);
+	void sample_F(const mat& Fshp, const mat& Frte);
 
-  void sample_B(const mat& Bshp, const mat& Brte);
+	void sample_B(const mat& Bshp, const mat& Brte);
 
-  default_random_engine generator;
+	default_random_engine generator;
 };
 
 #endif

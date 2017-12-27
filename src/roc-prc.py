@@ -1,58 +1,64 @@
 #!--coding:utf-8--
+from scipy import interp
+import numpy as np
 import sklearn.metrics as metric
 import matplotlib.pyplot as plt
 
 path='/Users/tubecube/Documents/graduate'
 
-def plot_roc(y_test, y_prob, title, is_save=False):
-	"""
-	绘制ROC曲线图
-	:param 默认不保存
-	:return: 
-	"""
-	fpr, tpr, thresholds = metric.roc_curve(y_test, y_prob, pos_label=1)
-	auc = metric.roc_auc_score(y_test, y_prob)
+mean_tpr = np.zeros(100)
+mean_fpr = np.linspace(0, 1, 100)
+mean_auc = 0.0
 
+def plot_mean(fpr, tpr, auc, title="Protein230(K=7)"):
 	plt.figure()
-	lw = 2
+	lw = 1
 	plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % auc)
 	plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-	plt.xlim([0.0, 1.0])
+	plt.xlim([-0.05, 1.0])
 	plt.ylim([0.0, 1.05])
 	plt.xlabel('False Positive Rate')
 	plt.ylabel('True Positive Rate')
 
 	plt.legend(loc="best")
-	plt.title('AUC_{0}: auc={1:0.2f}'.format(title, auc))
+	plt.title('{0}: auc={1:0.4f}'.format(title, auc))
 	plt.show()
-	if is_save:
-		plt.savefig(path+'/AUC_{0}_{1:0.2f}.jpg'.format(title, auc))
 
-def plot_prc(y_test, y_prob, is_save=False):
+
+def plot_roc(y_test, y_prob):
+	"""
+	绘制ROC曲线图
+	:param 默认不保存
+	:return: 
+	"""
+	global mean_tpr, mean_auc
+	fpr, tpr, thresholds = metric.roc_curve(y_test, y_prob, pos_label=1,
+	drop_intermediate=True)
+	auc = metric.roc_auc_score(y_test, y_prob)
+	mean_tpr += interp(mean_fpr, fpr, tpr)
+	mean_auc += auc
+
+def plot_prc(y_test, y_prob, title):
 	"""
 	适用于样本不平衡分类文同的模型评估
 	:param  默认不保存
 	:return: 
 	"""
-	if self.y_score:
-		average_precision = metric.average_precision_score(self.y_test, self.y_score)
-		precision, recall, _ = metric.precision_recall_curve(self.y_test, self.y_score)
-	else:
-		average_precision = metric.average_precision_score(self.y_test, self.y_prob[:, 1])
-		precision, recall, _ = metric.precision_recall_curve(self.y_test, self.y_prob[:,1])
+	average_precision = metric.average_precision_score(y_test, y_prob)
+	precision, recall, _ = metric.precision_recall_curve(y_test, y_prob)
 
+	plt.subplot(1,2,1)
 	plt.step(recall, precision, color='b', alpha=0.2, where='post')
-	plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
+	# plt.fill_between(recall, precision, step='post', alpha=0.2, color='b')
 
 	plt.xlabel('Recall')
 	plt.ylabel('Precision')
+	plt.xlim([-0.05, 1.0])
 	plt.ylim([0.0, 1.05])
-	plt.xlim([0.0, 1.0])
-	plt.title('PRC_{0}_{1}: AP={2:0.2f}'.format(self.model_name, self.param, average_precision))
+	plt.title('PRC_{0}: AP={1:0.2f}'.format(title, average_precision))
+	plt.subplot(1,2,2)
+	plt.plot(recall, precision)
 	plt.show()
-
-	if is_save:
-		plt.savefig(self.path+'/PRC_{0}_{1}_{2:0.2f}.jpg'.format(self.model_name, self.param, average_precision))
 
 def read_label_prob(filename):
 	labels = []
@@ -65,6 +71,11 @@ def read_label_prob(filename):
 
 if __name__ == "__main__":
 	import sys
-	filename = sys.argv[1]
-	labels, probs = read_label_prob(filename)
-	plot_roc(labels, probs, filename)
+	for filename in sys.argv[1:]:
+		labels, probs = read_label_prob(filename)
+		plot_roc(labels, probs)
+	mean_tpr /= len(sys.argv[1:])
+	mean_auc /= len(sys.argv[1:])
+	mean_tpr[0] = 0
+	plot_mean(mean_fpr, mean_tpr, mean_auc)
+	# plot_prc(labels, probs, filename)

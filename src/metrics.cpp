@@ -4,7 +4,7 @@
 vector<set<string>> Metrics::file_to_set2(const string& filename)
 {
 	vector<set<string>> ground;
-    ifstream stream(filename);
+  ifstream stream(filename);
 	if (stream.is_open())
 	{
 		for (string line; getline(stream, line); )
@@ -121,10 +121,10 @@ double Metrics::NNMI(const vector<set<string>>& g1, const vector<set<string>>& g
     for (int i=0; i<n1; ++i)
         for (int j=0; j<n2; ++j)
             confusion[i][j] = overlap_size(g1[i], g2[j]);
-                            
+
     size_t N1[n1], N2[n2];
     for (int i=0; i<n1; ++i)
-        N1[i] = g1[i].size(); 
+        N1[i] = g1[i].size();
     for (int i=0; i<n2; ++i)
         N2[i] = g2[i].size();
 
@@ -137,7 +137,7 @@ double Metrics::NNMI(const vector<set<string>>& g1, const vector<set<string>>& g
 
     double MI = .0;
     double normalizer = .0;
-    
+
     for (int i=0; i<n1; ++i)
     {
         for (int j=0; j<n2; ++j)
@@ -170,7 +170,7 @@ vector<double> Metrics::ONMI(const vector<set<string>>& g1, const vector<set<str
 {
     if (!is_overlap(g1) && !is_overlap(g2))
         WARN("ONMI: input sets are both disjoint!\n");
-    
+
     set<string> ss;
     for (int i=g1.size()-1; i>=0; i--)
         ss.insert(g1[i].begin(), g1[i].end());
@@ -179,7 +179,7 @@ vector<double> Metrics::ONMI(const vector<set<string>>& g1, const vector<set<str
     size_t N = ss.size();
 
     double lfkIXY, lfkIYX;
-    double HX, HY, HXgivenY, HYgivenX; 
+    double HX, HY, HXgivenY, HYgivenX;
 
     onmi_one_turn(g1, g2, N, HX, HXgivenY, lfkIXY);
     onmi_one_turn(g2, g1, N, HY, HYgivenX, lfkIYX);
@@ -217,11 +217,11 @@ void Metrics::onmi_one_turn(const vector<set<string>>& g1, const vector<set<stri
             if (t1 > t2)
                 continue;
             double Hy = H( (double)size_y/N ) + H( (double)(N-size_y)/N );
-            HxgivenY = min(HxgivenY, t1+t2-Hy); 
+            HxgivenY = min(HxgivenY, t1+t2-Hy);
         }
         HX += Hx;
         HXgivenY += HxgivenY;
-        
+
         lfkIXY += (Hx == .0 ? 1.0 : (Hx-HxgivenY)/Hx);
     }
 
@@ -301,7 +301,7 @@ double Metrics::F1(const vector<set<string>>& g1, const vector<set<string>>& g2)
 
 double Metrics::F1_one_turn(const vector< set<string> > &g1, const vector< set<string> >& g2)
 {
-    double F1_avg = 0.0; 
+    double F1_avg = 0.0;
 	size_t total_size = 0;
 	for (int i=g1.size()-1; i>=0; i--)
 		total_size += g1[i].size();

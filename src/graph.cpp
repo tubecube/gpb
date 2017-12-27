@@ -2,30 +2,30 @@
 
 int Graph::read_from_file(const string& filename, bool directed)
 {
-    ifstream stream(filename);
-    if (stream.is_open() == false)
+	ifstream stream(filename);
+	if (stream.is_open() == false)
 	{
-       ERROR("Graph: fail opening file %s\n", filename.c_str());
-	   return 2;
+    	ERROR("Graph: fail opening file %s\n", filename.c_str());
+		return 2;
 	}
 
-    this->directed = directed;
+	this->directed = directed;
 
-    if (directed)
-       INFO("Graph: reading from directed graph %s\n", filename.c_str());
-    else
-       INFO("Graph: reading from undirected graph %s\n", filename.c_str());
+	if (directed)
+		INFO("Graph: reading from directed graph %s\n", filename.c_str());
+	else
+		INFO("Graph: reading from undirected graph %s\n", filename.c_str());
 
 	str2id.clear();
 	id2str.clear();
 
 	unsigned m = 0;
-    for (string line; getline(stream, line); )
-    {
+	for (string line; getline(stream, line); )
+	{
 		/*add edge*/
-        istringstream edge(line);
-        string source, dest;
-        edge >> source >> dest;
+		istringstream edge(line);
+		string source, dest;
+		edge >> source >> dest;
 
 		if (source.size()==0 || dest.size()==0)
 			continue;
@@ -46,14 +46,14 @@ int Graph::read_from_file(const string& filename, bool directed)
 
 		if (++m % 100000 == 0)
 			DEBUG("Graph: already %u lines read\n", m);
-    }
-    stream.close();
+	}
+	stream.close();
 
 	N = str2id.size();
 	edges.resize(N);
 
 	Nones = 0;
-    for (int i=0; i<N; ++i)
+	for (int i=0; i<N; ++i)
 		Nones += edges[i].size();
 
 	long total_edges = (directed ? (long)N*(N-1) : (long)N*(N-1)/2);
@@ -76,16 +76,16 @@ int Graph::read_from_file(const string& filename, bool directed)
 			network(i, j) = 1;
 		}
 
-    INFO("Graph: reading graph finished nodes:%d edges:%u\n", N, Nones);
+	INFO("Graph: reading graph finished nodes:%d edges:%u\n", N, Nones);
 
 	return 0;
 }
 
 int Graph::check_id(const string& str)
 { 
-    if (str2id.find(str) == str2id.end())
-        str2id[str] = str2id.size();
-    return str2id[str];
+	if (str2id.find(str) == str2id.end())
+		str2id[str] = str2id.size();
+	return str2id[str];
 }
 
 int Graph::pop_heldout()
@@ -118,20 +118,20 @@ const Graph::Heldout* Graph::push_heldout(int N0, int N1)
 	heldouts.push_back(Heldout());
 	Heldout& current = heldouts.back(); 
 
-    srand(time(0));
+	srand(time(0));
 
 	/* assigning nonlinks */
-    while (N0-- > 0)
+	while (N0-- > 0)
 	{
-        int source, dest;
-        do
+		int source, dest;
+		do
 		{
         	source = rand()%N;
         	dest = rand()%N;
 			check_edge(source, dest);
-        } while (source == dest || network(source, dest) != 0 || check_in_heldouts(source, dest, false));
+		} while (source == dest || network(source, dest) != 0 || check_in_heldouts(source, dest, false));
 		current.pairs[0].insert(make_pair(source, dest));
-    }
+	}
 
 	/* assigning links */
 	int left = N1 - current.pairs[1].size();
